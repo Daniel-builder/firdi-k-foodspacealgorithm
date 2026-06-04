@@ -1,0 +1,2238 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>食材效期管理與到期預警系統</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --bg3: #1c2330;
+  --border: #2d3748;
+  --border2: #3a4a5e;
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --text3: #6e7681;
+  --red: #f85149;
+  --red-bg: #2d1f1f;
+  --orange: #e3973e;
+  --orange-bg: #2d2318;
+  --yellow: #d29922;
+  --yellow-bg: #2d2500;
+  --green: #3fb950;
+  --green-bg: #1a2d1e;
+  --blue: #58a6ff;
+  --blue-bg: #1a2535;
+  --purple: #bc8cff;
+  --accent: #58a6ff;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans TC', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── Modal Overlay ── */
+#modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  animation: fadeIn .3s ease;
+}
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+#modal-box {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  width: 680px; max-width: 95vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 32px;
+  animation: slideUp .3s ease;
+}
+@keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+
+#modal-box h2 {
+  font-size: 20px; font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+  display: flex; align-items: center; gap: 10px;
+}
+#modal-box .modal-date {
+  font-size: 12px; color: var(--text3);
+  font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 24px;
+}
+.modal-section { margin-bottom: 20px; }
+.modal-section h3 {
+  font-size: 13px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text2); margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+}
+.modal-item.critical { border-color: var(--red); background: var(--red-bg); }
+.modal-item.warning  { border-color: var(--orange); background: var(--orange-bg); }
+.modal-item.notice   { border-color: var(--yellow); background: var(--yellow-bg); }
+.modal-item .mi-name { font-weight: 600; font-size: 14px; flex: 0 0 80px; }
+.modal-item .mi-detail { color: var(--text2); font-size: 13px; flex: 1; }
+.modal-item .mi-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; padding: 2px 8px;
+  border-radius: 4px; flex-shrink: 0;
+}
+.modal-item.critical .mi-badge { background: var(--red); color: #fff; }
+.modal-item.warning  .mi-badge { background: var(--orange); color: #fff; }
+.modal-item.notice   .mi-badge { background: var(--yellow); color: #000; }
+
+.modal-footer {
+  display: flex; justify-content: flex-end; gap: 10px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.btn {
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-family: 'Noto Sans TC', sans-serif;
+  font-size: 13px; font-weight: 600;
+  transition: all .15s;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #79bbff; }
+.btn-ghost { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
+.btn-ghost:hover { color: var(--text); border-color: var(--border2); }
+
+/* ── Header ── */
+header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 18px 28px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo-icon {
+  width: 38px; height: 38px;
+  background: linear-gradient(135deg, #1d6fcd, #58a6ff);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.logo-text h1 { font-size: 17px; font-weight: 700; }
+.logo-text p  { font-size: 12px; color: var(--text3); }
+.header-right { display: flex; align-items: center; gap: 16px; }
+.header-date { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text2); }
+
+/* ── Layout ── */
+.container { max-width: 1400px; margin: 0 auto; padding: 24px 28px; }
+
+/* ── KPI Cards ── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.kpi-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  transition: border-color .2s;
+}
+.kpi-card:hover { border-color: var(--border2); }
+.kpi-card .kpi-label { font-size: 12px; color: var(--text3); margin-bottom: 8px; }
+.kpi-card .kpi-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 26px; font-weight: 600;
+}
+.kpi-card .kpi-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+.kpi-card.red   .kpi-val { color: var(--red); }
+.kpi-card.orange.kpi-val { color: var(--orange); }
+.kpi-card.yellow .kpi-val { color: var(--yellow); }
+.kpi-card.blue  .kpi-val  { color: var(--blue); }
+.kpi-card.green .kpi-val  { color: var(--green); }
+.kpi-card.red    { border-color: var(--red); background: var(--red-bg); }
+.kpi-card.orange { border-color: var(--orange); background: var(--orange-bg); }
+
+/* ── Section header ── */
+.section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.section-header h2 { font-size: 15px; font-weight: 700; }
+.section-header p  { font-size: 12px; color: var(--text3); }
+
+/* ── Filters ── */
+.filters {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 16px;
+  align-items: center;
+}
+.filter-btn {
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text2);
+  cursor: pointer;
+  font-family: 'Noto Sans TC', sans-serif;
+  font-size: 12px;
+  transition: all .15s;
+}
+.filter-btn.active, .filter-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--blue-bg);
+}
+.filter-sep { width: 1px; height: 24px; background: var(--border); }
+select.filter-select {
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text2);
+  font-family: 'Noto Sans TC', sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+select.filter-select:focus { border-color: var(--accent); }
+.search-box {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 14px;
+  margin-left: auto;
+}
+.search-box input {
+  background: none; border: none; outline: none;
+  color: var(--text); font-family: 'Noto Sans TC', sans-serif; font-size: 12px;
+  width: 160px;
+}
+.search-box input::placeholder { color: var(--text3); }
+
+/* ── Table ── */
+.table-wrap {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  background: var(--bg3);
+  padding: 11px 14px;
+  text-align: left;
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .07em;
+  color: var(--text2);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+thead th:hover { color: var(--text); }
+thead th .sort-icon { margin-left: 4px; opacity: .5; }
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--bg3); }
+tbody td {
+  padding: 10px 14px;
+  font-size: 13px;
+  vertical-align: middle;
+}
+.td-mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.td-right { text-align: right; }
+
+/* ── Status badges ── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px; font-weight: 600;
+  white-space: nowrap;
+}
+.badge-expired  { background: #3a1a1a; color: var(--red); border: 1px solid var(--red); }
+.badge-critical { background: #3a1f1a; color: #ff8c59; border: 1px solid #ff6b2b; }
+.badge-notice   { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow); }
+.badge-safe     { background: var(--green-bg); color: var(--green); border: 1px solid #2ea043; }
+
+/* ── FIFO tag ── */
+.fifo-tag {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: #1a2535; color: var(--blue);
+  border: 1px solid #234;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .05em;
+  margin-left: 6px;
+}
+
+/* ── Disposal select ── */
+.disposal-select {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text2);
+  font-family: 'Noto Sans TC', sans-serif;
+  font-size: 11px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color .15s;
+  width: 130px;
+}
+.disposal-select:focus { border-color: var(--accent); }
+.disposal-select.status-0 { color: var(--text2); }
+.disposal-select.status-1 { color: var(--yellow); border-color: var(--yellow); }
+.disposal-select.status-2 { color: var(--green); border-color: var(--green); }
+
+/* ── Days bar ── */
+.days-bar-wrap {
+  display: flex; align-items: center; gap: 8px;
+}
+.days-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; min-width: 42px; text-align: right;
+}
+.days-bar {
+  height: 4px; border-radius: 2px;
+  background: var(--border);
+  flex: 1; overflow: hidden;
+}
+.days-fill { height: 100%; border-radius: 2px; }
+
+/* ── Risk value ── */
+.risk-chip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+.risk-high { color: var(--red); }
+.risk-med  { color: var(--orange); }
+.risk-low  { color: var(--text2); }
+
+/* ── FIFO Panel ── */
+.fifo-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 22px;
+  margin-bottom: 24px;
+}
+.fifo-panel h2 {
+  font-size: 14px; font-weight: 700; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.fifo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.fifo-item {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.fifo-item .fi-name { font-weight: 700; font-size: 14px; margin-bottom: 10px; }
+.fifo-batch {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.fifo-batch:last-child { border-bottom: none; }
+.fifo-batch .fb-batch { font-family: 'JetBrains Mono', monospace; color: var(--text2); font-size: 11px; }
+.fifo-batch .fb-days { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+.fifo-batch .fb-qty  { color: var(--text3); font-size: 11px; }
+.fifo-order {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-right: 6px; flex-shrink: 0;
+}
+
+/* ── Pagination ── */
+.pagination {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 0;
+}
+.pagination .pg-info { font-size: 12px; color: var(--text3); }
+.pg-btns { display: flex; gap: 6px; }
+.pg-btn {
+  width: 32px; height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text2);
+  cursor: pointer;
+  font-family: 'Noto Sans TC', sans-serif;
+  font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.pg-btn.active, .pg-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--blue-bg); }
+.pg-btn:disabled { opacity: .3; cursor: default; pointer-events: none; }
+
+/* ── Storage legend ── */
+.storage-legend {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.sl-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+.sl-dot { width: 8px; height: 8px; border-radius: 50%; }
+.sl-cold  { background: #58a6ff; }
+.sl-freeze{ background: #bc8cff; }
+.sl-dry   { background: #e3973e; }
+
+/* ── price note ── */
+.price-note {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 11px; color: var(--text3);
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+.price-note a { color: var(--accent); text-decoration: none; }
+
+/* ── No results ── */
+.no-results {
+  text-align: center;
+  padding: 40px;
+  color: var(--text3);
+  font-size: 14px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  .container { padding: 16px; }
+}
+
+/* ── Nav Tabs ── */
+.nav-tabs {
+  display: flex; gap: 0;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+}
+.nav-tab {
+  padding: 12px 22px;
+  font-size: 13px; font-weight: 600;
+  color: var(--text2);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all .15s;
+  user-select: none;
+}
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── Page sections ── */
+.page-section { display: none; }
+.page-section.active { display: block; }
+
+/* ── Form panel ── */
+.form-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px 28px;
+  margin-bottom: 20px;
+}
+.form-panel h2 { font-size: 15px; font-weight: 700; margin-bottom: 20px; }
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: 11px; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: .07em; }
+.form-input, .form-select {
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text);
+  font-family: 'Noto Sans TC', sans-serif;
+  font-size: 13px;
+  outline: none;
+  transition: border-color .15s;
+  width: 100%;
+}
+.form-input:focus, .form-select:focus { border-color: var(--accent); }
+.form-actions { display: flex; gap: 10px; align-items: center; }
+.form-note { font-size: 11px; color: var(--text3); }
+
+/* ── Transaction log ── */
+.txn-log {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.txn-log-header {
+  background: var(--bg3);
+  padding: 14px 20px;
+  font-size: 13px; font-weight: 700;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.txn-table { width: 100%; border-collapse: collapse; }
+.txn-table th {
+  background: var(--bg3);
+  padding: 9px 14px;
+  text-align: left;
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .07em;
+  color: var(--text2);
+  border-bottom: 1px solid var(--border);
+}
+.txn-table td {
+  padding: 9px 14px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.txn-table tr:last-child td { border-bottom: none; }
+.txn-table tr:hover td { background: var(--bg3); }
+.txn-in  { color: var(--green); }
+.txn-out { color: var(--orange); }
+.txn-type-badge {
+  display: inline-block;
+  padding: 2px 10px; border-radius: 20px;
+  font-size: 10px; font-weight: 700;
+}
+.txn-type-in  { background: var(--green-bg); color: var(--green); border: 1px solid #2ea043; }
+.txn-type-out { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange); }
+.form-input.error { border-color: var(--red); }
+.error-msg { font-size: 11px; color: var(--red); margin-top: 4px; }
+.success-toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: var(--green-bg); color: var(--green);
+  border: 1px solid var(--green);
+  border-radius: 10px; padding: 12px 20px;
+  font-size: 13px; font-weight: 600;
+  z-index: 999;
+  animation: slideIn .3s ease;
+}
+.error-toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: var(--red-bg); color: var(--red);
+  border: 1px solid var(--red);
+  border-radius: 10px; padding: 12px 20px;
+  font-size: 13px; font-weight: 600;
+  z-index: 999;
+  animation: slideIn .3s ease;
+}
+@keyframes slideIn { from{transform:translateX(40px);opacity:0} to{transform:translateX(0);opacity:1} }
+.stock-preview {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-size: 12px;
+  display: none;
+}
+.stock-preview.show { display: block; }
+.stock-preview .sp-title { color: var(--text3); margin-bottom: 8px; }
+.stock-preview .sp-item {
+  display: flex; justify-content: space-between;
+  padding: 4px 0; border-bottom: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+}
+.stock-preview .sp-item:last-child { border-bottom: none; }
+.sp-fifo-tag {
+  background: var(--accent); color: #fff;
+  border-radius: 3px; padding: 0 5px;
+  font-size: 9px; margin-left: 4px;
+}
+
+
+
+/* ── Mermaid flowchart page ── */
+.flow-hero {
+  background: linear-gradient(135deg, rgba(88,166,255,.16), rgba(188,140,255,.10));
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  padding: 22px 24px;
+  margin-bottom: 18px;
+}
+.flow-hero h2 {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+.flow-hero p {
+  color: var(--text2);
+  font-size: 13px;
+}
+.flow-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+.flow-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.flow-card-header {
+  background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.flow-card-header h3 {
+  font-size: 15px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+.flow-card-header p {
+  font-size: 12px;
+  color: var(--text3);
+}
+.flow-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  background: var(--blue-bg);
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+.flow-chart-wrap {
+  padding: 18px;
+  overflow-x: auto;
+}
+.flow-chart-wrap .mermaid {
+  min-width: 900px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+}
+.flow-note {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--text2);
+  font-size: 12px;
+  line-height: 1.7;
+  margin-bottom: 18px;
+}
+@media (max-width: 900px) {
+  .nav-tabs { overflow-x: auto; padding: 0 12px; }
+  .nav-tab { white-space: nowrap; padding: 12px 16px; }
+  .flow-hero { padding: 18px; }
+  .flow-chart-wrap { padding: 12px; }
+  .flow-chart-wrap .mermaid { min-width: 760px; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ====== MODAL ====== -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <h2>🔔 本週食材耗用優先提醒</h2>
+    <p class="modal-date" id="modal-date"></p>
+    <div id="modal-content"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">關閉提醒</button>
+      <button class="btn btn-primary" onclick="closeModal()">已確認，開始作業</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== HEADER ====== -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🧊</div>
+    <div class="logo-text">
+      <h1>食材效期管理與到期預警系統</h1>
+      <p>龍行天下餐飲股份有限公司 · 中央廚房</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="header-date" id="header-date"></span>
+    <button class="btn btn-ghost" onclick="openModal()" style="font-size:12px">🔔 查看本週提醒</button>
+  </div>
+</header>
+
+
+<!-- ====== NAV TABS ====== -->
+<div class="nav-tabs">
+  <div class="nav-tab active" onclick="switchTab('inventory')">📋 庫存總覽</div>
+  <div class="nav-tab" onclick="switchTab('receive')">📥 進貨登記</div>
+  <div class="nav-tab" onclick="switchTab('issue')">📤 領料出貨</div>
+  <div class="nav-tab" onclick="switchTab('txnlog')">📑 作業記錄</div>
+  <div class="nav-tab" id="scrap-tab" onclick="switchTab('scrap')">🗑 報廢作業</div>
+  <div class="nav-tab" onclick="switchTab('flowcharts')">🧭 流程圖</div>
+</div>
+
+<!-- ====== MAIN ====== -->
+<div class="page-section active" id="page-inventory"><div class="container">
+
+  <!-- KPI -->
+  <div class="kpi-grid" id="kpi-grid"></div>
+
+  <!-- Price note -->
+  <div class="price-note">
+    ⚠️ 單價來源：蔬菜類參考
+    <a href="https://www.twfood.cc" target="_blank">twfood.cc</a> 及台中果菜運銷批發行情（2025年6月）；
+    肉類參考卜蜂/中央畜產會行情；雞蛋參考北市蛋商公會批發價格（32元/台斤≈54元/公斤）；
+    乳製品、蝦仁、鮭魚參考台灣食品業常見批發行情。
+    本報表之「風險金額」為估算值，僅供成本管控參考，請以實際進貨單價為準。
+  </div>
+
+  <!-- FIFO -->
+  <div class="fifo-panel">
+    <h2>📦 FIFO 批號耗用順序（同品項跨批號管理）</h2>
+    <div class="fifo-grid" id="fifo-grid"></div>
+  </div>
+
+  <!-- Table -->
+  <div class="section-header">
+    <div>
+      <h2>📋 完整庫存明細</h2>
+      <p>點選欄位標題可排序 · FIFO 標籤代表同品項中應優先耗用的批號</p>
+    </div>
+  </div>
+
+  <div class="filters">
+    <button class="filter-btn active" data-filter="all" onclick="setFilter('all',this)">全部</button>
+    <button class="filter-btn" data-filter="expired"  onclick="setFilter('expired',this)">❌ 已過期</button>
+    <button class="filter-btn" data-filter="critical" onclick="setFilter('critical',this)">🔴 緊迫即期</button>
+    <button class="filter-btn" data-filter="notice"   onclick="setFilter('notice',this)">🟡 注意</button>
+    <button class="filter-btn" data-filter="safe"     onclick="setFilter('safe',this)">🟢 安全</button>
+    <div class="filter-sep"></div>
+    <select class="filter-select" id="storage-filter" onchange="renderTable()">
+      <option value="all">全部庫別</option>
+      <option value="冷藏庫">冷藏庫</option>
+      <option value="冷凍庫">冷凍庫</option>
+      <option value="常溫雜貨庫">常溫雜貨庫</option>
+    </select>
+    <select class="filter-select" id="disposal-filter" onchange="renderTable()">
+      <option value="all">全部處置狀態</option>
+      <option value="尚在原庫">尚在原庫</option>
+      <option value="已轉移至報廢倉">已轉移至報廢倉</option>
+      <option value="已報廢">已報廢</option>
+    </select>
+    <div class="search-box">
+      <span style="color:var(--text3);font-size:13px">🔍</span>
+      <input type="text" id="search-input" placeholder="搜尋食材名稱或批號…" oninput="renderTable()">
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr id="table-head"></tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+
+  <div class="pagination">
+    <span class="pg-info" id="pg-info"></span>
+    <div class="pg-btns" id="pg-btns"></div>
+  </div>
+
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────
+const RAW_DATA = [{"food_name": "豆腐", "batch_id": "BATCH1000", "receive_date": "2026-01-01", "expiry_date": "2026-01-06", "days_left": -149, "status": "❌ 已過期", "stock_qty": 372, "storage": "冷藏庫", "shelf_days": 5, "unit_price": 25, "risk_value": 9300, "disposal_status": "尚在原庫"}, {"food_name": "豆腐", "batch_id": "BATCH1001", "receive_date": "2026-02-02", "expiry_date": "2026-02-07", "days_left": -117, "status": "❌ 已過期", "stock_qty": 357, "storage": "冷藏庫", "shelf_days": 5, "unit_price": 25, "risk_value": 8925, "disposal_status": "尚在原庫"}, {"food_name": "豆腐", "batch_id": "BATCH1002", "receive_date": "2026-04-03", "expiry_date": "2026-04-08", "days_left": -57, "status": "❌ 已過期", "stock_qty": 487, "storage": "冷藏庫", "shelf_days": 5, "unit_price": 25, "risk_value": 12175, "disposal_status": "尚在原庫"}, {"food_name": "牛奶", "batch_id": "BATCH1003", "receive_date": "2026-04-04", "expiry_date": "2026-04-14", "days_left": -51, "status": "❌ 已過期", "stock_qty": 126, "storage": "冷藏庫", "shelf_days": 10, "unit_price": 40, "risk_value": 5040, "disposal_status": "尚在原庫"}, {"food_name": "菇類", "batch_id": "BATCH1004", "receive_date": "2026-05-05", "expiry_date": "2026-05-12", "days_left": -23, "status": "❌ 已過期", "stock_qty": 312, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 80, "risk_value": 24960, "disposal_status": "尚在原庫"}, {"food_name": "起司", "batch_id": "BATCH1005", "receive_date": "2026-06-06", "expiry_date": "2026-07-06", "days_left": 32, "status": "🟢 安全", "stock_qty": 140, "storage": "冷藏庫", "shelf_days": 30, "unit_price": 280, "risk_value": 39200, "disposal_status": "尚在原庫"}, {"food_name": "菇類", "batch_id": "BATCH1006", "receive_date": "2026-07-07", "expiry_date": "2026-07-14", "days_left": 40, "status": "🟢 安全", "stock_qty": 55, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 80, "risk_value": 4400, "disposal_status": "尚在原庫"}, {"food_name": "蝦仁", "batch_id": "BATCH1007", "receive_date": "2026-08-08", "expiry_date": "2026-11-06", "days_left": 155, "status": "🟢 安全", "stock_qty": 255, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 220, "risk_value": 56100, "disposal_status": "尚在原庫"}, {"food_name": "鮭魚", "batch_id": "BATCH1008", "receive_date": "2026-09-09", "expiry_date": "2026-12-08", "days_left": 187, "status": "🟢 安全", "stock_qty": 234, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 260, "risk_value": 60840, "disposal_status": "尚在原庫"}, {"food_name": "豬絞肉", "batch_id": "BATCH1009", "receive_date": "2026-10-10", "expiry_date": "2026-12-09", "days_left": 188, "status": "🟢 安全", "stock_qty": 106, "storage": "冷凍庫", "shelf_days": 60, "unit_price": 120, "risk_value": 12720, "disposal_status": "尚在原庫"}, {"food_name": "醬油", "batch_id": "BATCH1010", "receive_date": "2026-11-11", "expiry_date": "2027-11-11", "days_left": 525, "status": "🟢 安全", "stock_qty": 186, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 35, "risk_value": 6510, "disposal_status": "尚在原庫"}, {"food_name": "雞胸肉", "batch_id": "BATCH1011", "receive_date": "2026-01-12", "expiry_date": "2026-03-13", "days_left": -83, "status": "❌ 已過期", "stock_qty": 26, "storage": "冷凍庫", "shelf_days": 60, "unit_price": 85, "risk_value": 2210, "disposal_status": "尚在原庫"}, {"food_name": "麵粉", "batch_id": "BATCH1012", "receive_date": "2026-01-13", "expiry_date": "2027-01-13", "days_left": 223, "status": "🟢 安全", "stock_qty": 368, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 22, "risk_value": 8096, "disposal_status": "尚在原庫"}, {"food_name": "豬絞肉", "batch_id": "BATCH1013", "receive_date": "2026-02-14", "expiry_date": "2026-04-15", "days_left": -50, "status": "❌ 已過期", "stock_qty": 63, "storage": "冷凍庫", "shelf_days": 60, "unit_price": 120, "risk_value": 7560, "disposal_status": "尚在原庫"}, {"food_name": "鮭魚", "batch_id": "BATCH1014", "receive_date": "2026-03-15", "expiry_date": "2026-06-13", "days_left": 9, "status": "🟡 注意", "stock_qty": 450, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 260, "risk_value": 117000, "disposal_status": "尚在原庫"}, {"food_name": "砂糖", "batch_id": "BATCH1015", "receive_date": "2026-05-16", "expiry_date": "2027-05-16", "days_left": 346, "status": "🟢 安全", "stock_qty": 139, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 30, "risk_value": 4170, "disposal_status": "尚在原庫"}, {"food_name": "蝦仁", "batch_id": "BATCH1016", "receive_date": "2026-05-17", "expiry_date": "2026-08-15", "days_left": 72, "status": "🟢 安全", "stock_qty": 180, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 220, "risk_value": 39600, "disposal_status": "尚在原庫"}, {"food_name": "奶油", "batch_id": "BATCH1017", "receive_date": "2026-01-18", "expiry_date": "2026-01-25", "days_left": -130, "status": "❌ 已過期", "stock_qty": 447, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 180, "risk_value": 80460, "disposal_status": "尚在原庫"}, {"food_name": "起司", "batch_id": "BATCH1018", "receive_date": "2026-02-19", "expiry_date": "2026-03-21", "days_left": -75, "status": "❌ 已過期", "stock_qty": 374, "storage": "冷藏庫", "shelf_days": 30, "unit_price": 280, "risk_value": 104720, "disposal_status": "尚在原庫"}, {"food_name": "蝦仁", "batch_id": "BATCH1019", "receive_date": "2026-08-20", "expiry_date": "2026-11-18", "days_left": 167, "status": "🟢 安全", "stock_qty": 197, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 220, "risk_value": 43340, "disposal_status": "尚在原庫"}, {"food_name": "紅蘿蔔", "batch_id": "BATCH1020", "receive_date": "2026-09-21", "expiry_date": "2026-10-05", "days_left": 123, "status": "🟢 安全", "stock_qty": 223, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 13, "risk_value": 2899, "disposal_status": "尚在原庫"}, {"food_name": "雞蛋", "batch_id": "BATCH1021", "receive_date": "2026-10-22", "expiry_date": "2026-11-21", "days_left": 170, "status": "🟢 安全", "stock_qty": 137, "storage": "冷藏庫", "shelf_days": 30, "unit_price": 55, "risk_value": 7535, "disposal_status": "尚在原庫"}, {"food_name": "蝦仁", "batch_id": "BATCH1022", "receive_date": "2026-11-23", "expiry_date": "2027-02-21", "days_left": 262, "status": "🟢 安全", "stock_qty": 270, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 220, "risk_value": 59400, "disposal_status": "尚在原庫"}, {"food_name": "紅蘿蔔", "batch_id": "BATCH1023", "receive_date": "2026-01-24", "expiry_date": "2026-02-07", "days_left": -117, "status": "❌ 已過期", "stock_qty": 453, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 13, "risk_value": 5889, "disposal_status": "尚在原庫"}, {"food_name": "洋蔥", "batch_id": "BATCH1024", "receive_date": "2026-01-25", "expiry_date": "2026-02-08", "days_left": -116, "status": "❌ 已過期", "stock_qty": 34, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 20, "risk_value": 680, "disposal_status": "尚在原庫"}, {"food_name": "起司", "batch_id": "BATCH1025", "receive_date": "2026-03-26", "expiry_date": "2026-04-25", "days_left": -40, "status": "❌ 已過期", "stock_qty": 108, "storage": "冷藏庫", "shelf_days": 30, "unit_price": 280, "risk_value": 30240, "disposal_status": "尚在原庫"}, {"food_name": "雞蛋", "batch_id": "BATCH1026", "receive_date": "2026-03-27", "expiry_date": "2026-04-26", "days_left": -39, "status": "❌ 已過期", "stock_qty": 393, "storage": "冷藏庫", "shelf_days": 30, "unit_price": 55, "risk_value": 21615, "disposal_status": "尚在原庫"}, {"food_name": "白米", "batch_id": "BATCH1027", "receive_date": "2026-05-28", "expiry_date": "2027-05-28", "days_left": 358, "status": "🟢 安全", "stock_qty": 491, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 38, "risk_value": 18658, "disposal_status": "尚在原庫"}, {"food_name": "蝦仁", "batch_id": "BATCH1028", "receive_date": "2026-05-01", "expiry_date": "2026-07-30", "days_left": 56, "status": "🟢 安全", "stock_qty": 261, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 220, "risk_value": 57420, "disposal_status": "尚在原庫"}, {"food_name": "食用油", "batch_id": "BATCH1029", "receive_date": "2026-01-02", "expiry_date": "2027-01-02", "days_left": 212, "status": "🟢 安全", "stock_qty": 20, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 60, "risk_value": 1200, "disposal_status": "尚在原庫"}, {"food_name": "蝦仁", "batch_id": "BATCH1030", "receive_date": "2026-07-03", "expiry_date": "2026-10-01", "days_left": 119, "status": "🟢 安全", "stock_qty": 98, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 220, "risk_value": 21560, "disposal_status": "尚在原庫"}, {"food_name": "鮭魚", "batch_id": "BATCH1031", "receive_date": "2026-08-04", "expiry_date": "2026-11-02", "days_left": 151, "status": "🟢 安全", "stock_qty": 201, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 260, "risk_value": 52260, "disposal_status": "尚在原庫"}, {"food_name": "醬油", "batch_id": "BATCH1032", "receive_date": "2026-09-05", "expiry_date": "2027-09-05", "days_left": 458, "status": "🟢 安全", "stock_qty": 135, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 35, "risk_value": 4725, "disposal_status": "尚在原庫"}, {"food_name": "牛奶", "batch_id": "BATCH1033", "receive_date": "2026-10-06", "expiry_date": "2026-10-16", "days_left": 134, "status": "🟢 安全", "stock_qty": 268, "storage": "冷藏庫", "shelf_days": 10, "unit_price": 40, "risk_value": 10720, "disposal_status": "尚在原庫"}, {"food_name": "麵粉", "batch_id": "BATCH1034", "receive_date": "2026-11-07", "expiry_date": "2027-11-07", "days_left": 521, "status": "🟢 安全", "stock_qty": 343, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 22, "risk_value": 7546, "disposal_status": "尚在原庫"}, {"food_name": "蝦仁", "batch_id": "BATCH1035", "receive_date": "2026-12-08", "expiry_date": "2027-03-08", "days_left": 277, "status": "🟢 安全", "stock_qty": 419, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 220, "risk_value": 92180, "disposal_status": "尚在原庫"}, {"food_name": "牛奶", "batch_id": "BATCH1036", "receive_date": "2026-01-09", "expiry_date": "2026-01-19", "days_left": -136, "status": "❌ 已過期", "stock_qty": 54, "storage": "冷藏庫", "shelf_days": 10, "unit_price": 40, "risk_value": 2160, "disposal_status": "尚在原庫"}, {"food_name": "菇類", "batch_id": "BATCH1037", "receive_date": "2026-02-10", "expiry_date": "2026-02-17", "days_left": -107, "status": "❌ 已過期", "stock_qty": 328, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 80, "risk_value": 26240, "disposal_status": "尚在原庫"}, {"food_name": "馬鈴薯", "batch_id": "BATCH1038", "receive_date": "2026-03-11", "expiry_date": "2026-03-18", "days_left": -78, "status": "❌ 已過期", "stock_qty": 119, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 21, "risk_value": 2499, "disposal_status": "尚在原庫"}, {"food_name": "蝦仁", "batch_id": "BATCH1039", "receive_date": "2026-05-12", "expiry_date": "2026-08-10", "days_left": 67, "status": "🟢 安全", "stock_qty": 127, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 220, "risk_value": 27940, "disposal_status": "尚在原庫"}, {"food_name": "雞胸肉", "batch_id": "BATCH1040", "receive_date": "2026-05-13", "expiry_date": "2026-07-12", "days_left": 38, "status": "🟢 安全", "stock_qty": 191, "storage": "冷凍庫", "shelf_days": 60, "unit_price": 85, "risk_value": 16235, "disposal_status": "尚在原庫"}, {"food_name": "雞蛋", "batch_id": "BATCH1041", "receive_date": "2026-06-14", "expiry_date": "2026-07-14", "days_left": 40, "status": "🟢 安全", "stock_qty": 426, "storage": "冷藏庫", "shelf_days": 30, "unit_price": 55, "risk_value": 23430, "disposal_status": "尚在原庫"}, {"food_name": "豬絞肉", "batch_id": "BATCH1042", "receive_date": "2026-02-15", "expiry_date": "2026-04-16", "days_left": -49, "status": "❌ 已過期", "stock_qty": 479, "storage": "冷凍庫", "shelf_days": 60, "unit_price": 120, "risk_value": 57480, "disposal_status": "尚在原庫"}, {"food_name": "洋蔥", "batch_id": "BATCH1043", "receive_date": "2026-08-16", "expiry_date": "2026-08-30", "days_left": 87, "status": "🟢 安全", "stock_qty": 148, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 20, "risk_value": 2960, "disposal_status": "尚在原庫"}, {"food_name": "白米", "batch_id": "BATCH1044", "receive_date": "2026-04-17", "expiry_date": "2027-04-17", "days_left": 317, "status": "🟢 安全", "stock_qty": 473, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 38, "risk_value": 17974, "disposal_status": "尚在原庫"}, {"food_name": "奶油", "batch_id": "BATCH1045", "receive_date": "2026-05-18", "expiry_date": "2026-05-25", "days_left": -10, "status": "❌ 已過期", "stock_qty": 154, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 180, "risk_value": 27720, "disposal_status": "尚在原庫"}, {"food_name": "菇類", "batch_id": "BATCH1046", "receive_date": "2026-11-19", "expiry_date": "2026-11-26", "days_left": 175, "status": "🟢 安全", "stock_qty": 204, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 80, "risk_value": 16320, "disposal_status": "尚在原庫"}, {"food_name": "豆腐", "batch_id": "BATCH1047", "receive_date": "2026-12-20", "expiry_date": "2026-12-25", "days_left": 204, "status": "🟢 安全", "stock_qty": 203, "storage": "冷藏庫", "shelf_days": 5, "unit_price": 25, "risk_value": 5075, "disposal_status": "尚在原庫"}, {"food_name": "豬絞肉", "batch_id": "BATCH1048", "receive_date": "2026-01-21", "expiry_date": "2026-03-22", "days_left": -74, "status": "❌ 已過期", "stock_qty": 86, "storage": "冷凍庫", "shelf_days": 60, "unit_price": 120, "risk_value": 10320, "disposal_status": "尚在原庫"}, {"food_name": "洋蔥", "batch_id": "BATCH1049", "receive_date": "2026-02-22", "expiry_date": "2026-03-08", "days_left": -88, "status": "❌ 已過期", "stock_qty": 65, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 20, "risk_value": 1300, "disposal_status": "尚在原庫"}, {"food_name": "牛奶", "batch_id": "BATCH1050", "receive_date": "2026-03-23", "expiry_date": "2026-04-02", "days_left": -63, "status": "❌ 已過期", "stock_qty": 492, "storage": "冷藏庫", "shelf_days": 10, "unit_price": 40, "risk_value": 19680, "disposal_status": "尚在原庫"}, {"food_name": "番茄", "batch_id": "BATCH1051", "receive_date": "2026-04-24", "expiry_date": "2026-05-08", "days_left": -27, "status": "❌ 已過期", "stock_qty": 220, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 33, "risk_value": 7260, "disposal_status": "尚在原庫"}, {"food_name": "牛奶", "batch_id": "BATCH1052", "receive_date": "2026-05-25", "expiry_date": "2026-06-04", "days_left": 0, "status": "❌ 已過期", "stock_qty": 289, "storage": "冷藏庫", "shelf_days": 10, "unit_price": 40, "risk_value": 11560, "disposal_status": "尚在原庫"}, {"food_name": "起司", "batch_id": "BATCH1053", "receive_date": "2026-06-26", "expiry_date": "2026-07-26", "days_left": 52, "status": "🟢 安全", "stock_qty": 356, "storage": "冷藏庫", "shelf_days": 30, "unit_price": 280, "risk_value": 99680, "disposal_status": "尚在原庫"}, {"food_name": "洋蔥", "batch_id": "BATCH1054", "receive_date": "2026-02-27", "expiry_date": "2026-03-13", "days_left": -83, "status": "❌ 已過期", "stock_qty": 270, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 20, "risk_value": 5400, "disposal_status": "尚在原庫"}, {"food_name": "番茄", "batch_id": "BATCH1055", "receive_date": "2026-03-28", "expiry_date": "2026-04-11", "days_left": -54, "status": "❌ 已過期", "stock_qty": 109, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 33, "risk_value": 3597, "disposal_status": "尚在原庫"}, {"food_name": "洋蔥", "batch_id": "BATCH1056", "receive_date": "2026-04-01", "expiry_date": "2026-04-15", "days_left": -50, "status": "❌ 已過期", "stock_qty": 280, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 20, "risk_value": 5600, "disposal_status": "尚在原庫"}, {"food_name": "豆腐", "batch_id": "BATCH1057", "receive_date": "2026-10-02", "expiry_date": "2026-10-07", "days_left": 125, "status": "🟢 安全", "stock_qty": 21, "storage": "冷藏庫", "shelf_days": 5, "unit_price": 25, "risk_value": 525, "disposal_status": "尚在原庫"}, {"food_name": "蝦仁", "batch_id": "BATCH1058", "receive_date": "2026-11-03", "expiry_date": "2027-02-01", "days_left": 242, "status": "🟢 安全", "stock_qty": 152, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 220, "risk_value": 33440, "disposal_status": "尚在原庫"}, {"food_name": "豆腐", "batch_id": "BATCH1059", "receive_date": "2026-12-04", "expiry_date": "2026-12-09", "days_left": 188, "status": "🟢 安全", "stock_qty": 238, "storage": "冷藏庫", "shelf_days": 5, "unit_price": 25, "risk_value": 5950, "disposal_status": "尚在原庫"}, {"food_name": "紅蘿蔔", "batch_id": "BATCH1060", "receive_date": "2026-01-05", "expiry_date": "2026-01-19", "days_left": -136, "status": "❌ 已過期", "stock_qty": 285, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 13, "risk_value": 3705, "disposal_status": "尚在原庫"}, {"food_name": "豆腐", "batch_id": "BATCH1061", "receive_date": "2026-02-06", "expiry_date": "2026-02-11", "days_left": -113, "status": "❌ 已過期", "stock_qty": 128, "storage": "冷藏庫", "shelf_days": 5, "unit_price": 25, "risk_value": 3200, "disposal_status": "尚在原庫"}, {"food_name": "起司", "batch_id": "BATCH1062", "receive_date": "2026-03-07", "expiry_date": "2026-04-06", "days_left": -59, "status": "❌ 已過期", "stock_qty": 126, "storage": "冷藏庫", "shelf_days": 30, "unit_price": 280, "risk_value": 35280, "disposal_status": "尚在原庫"}, {"food_name": "紅蘿蔔", "batch_id": "BATCH1063", "receive_date": "2026-04-08", "expiry_date": "2026-04-22", "days_left": -43, "status": "❌ 已過期", "stock_qty": 9, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 13, "risk_value": 117, "disposal_status": "尚在原庫"}, {"food_name": "紅蘿蔔", "batch_id": "BATCH1064", "receive_date": "2026-05-09", "expiry_date": "2026-05-23", "days_left": -12, "status": "❌ 已過期", "stock_qty": 111, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 13, "risk_value": 1443, "disposal_status": "尚在原庫"}, {"food_name": "豬絞肉", "batch_id": "BATCH1065", "receive_date": "2026-06-10", "expiry_date": "2026-08-09", "days_left": 66, "status": "🟢 安全", "stock_qty": 349, "storage": "冷凍庫", "shelf_days": 60, "unit_price": 120, "risk_value": 41880, "disposal_status": "尚在原庫"}, {"food_name": "砂糖", "batch_id": "BATCH1066", "receive_date": "2026-07-11", "expiry_date": "2027-07-11", "days_left": 402, "status": "🟢 安全", "stock_qty": 197, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 30, "risk_value": 5910, "disposal_status": "尚在原庫"}, {"food_name": "豬絞肉", "batch_id": "BATCH1067", "receive_date": "2026-08-12", "expiry_date": "2026-10-11", "days_left": 129, "status": "🟢 安全", "stock_qty": 227, "storage": "冷凍庫", "shelf_days": 60, "unit_price": 120, "risk_value": 27240, "disposal_status": "尚在原庫"}, {"food_name": "麵粉", "batch_id": "BATCH1068", "receive_date": "2026-09-13", "expiry_date": "2027-09-13", "days_left": 466, "status": "🟢 安全", "stock_qty": 55, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 22, "risk_value": 1210, "disposal_status": "尚在原庫"}, {"food_name": "菇類", "batch_id": "BATCH1069", "receive_date": "2026-10-14", "expiry_date": "2026-10-21", "days_left": 139, "status": "🟢 安全", "stock_qty": 199, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 80, "risk_value": 15920, "disposal_status": "尚在原庫"}, {"food_name": "雞蛋", "batch_id": "BATCH1070", "receive_date": "2026-11-15", "expiry_date": "2026-12-15", "days_left": 194, "status": "🟢 安全", "stock_qty": 371, "storage": "冷藏庫", "shelf_days": 30, "unit_price": 55, "risk_value": 20405, "disposal_status": "尚在原庫"}, {"food_name": "食用油", "batch_id": "BATCH1071", "receive_date": "2026-12-16", "expiry_date": "2027-12-16", "days_left": 560, "status": "🟢 安全", "stock_qty": 72, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 60, "risk_value": 4320, "disposal_status": "尚在原庫"}, {"food_name": "高麗菜", "batch_id": "BATCH1072", "receive_date": "2026-01-17", "expiry_date": "2026-01-24", "days_left": -131, "status": "❌ 已過期", "stock_qty": 50, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 21, "risk_value": 1050, "disposal_status": "尚在原庫"}, {"food_name": "高麗菜", "batch_id": "BATCH1073", "receive_date": "2026-02-18", "expiry_date": "2026-02-25", "days_left": -99, "status": "❌ 已過期", "stock_qty": 353, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 21, "risk_value": 7413, "disposal_status": "尚在原庫"}, {"food_name": "蝦仁", "batch_id": "BATCH1074", "receive_date": "2026-04-19", "expiry_date": "2026-07-18", "days_left": 44, "status": "🟢 安全", "stock_qty": 73, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 220, "risk_value": 16060, "disposal_status": "尚在原庫"}, {"food_name": "奶油", "batch_id": "BATCH1075", "receive_date": "2026-04-20", "expiry_date": "2026-04-27", "days_left": -38, "status": "❌ 已過期", "stock_qty": 224, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 180, "risk_value": 40320, "disposal_status": "尚在原庫"}, {"food_name": "番茄", "batch_id": "BATCH1076", "receive_date": "2026-05-21", "expiry_date": "2026-06-04", "days_left": 0, "status": "❌ 已過期", "stock_qty": 16, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 33, "risk_value": 528, "disposal_status": "尚在原庫"}, {"food_name": "高麗菜", "batch_id": "BATCH1077", "receive_date": "2026-06-22", "expiry_date": "2026-06-29", "days_left": 25, "status": "🟡 注意", "stock_qty": 124, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 21, "risk_value": 2604, "disposal_status": "尚在原庫"}, {"food_name": "起司", "batch_id": "BATCH1078", "receive_date": "2026-07-23", "expiry_date": "2026-08-22", "days_left": 79, "status": "🟢 安全", "stock_qty": 275, "storage": "冷藏庫", "shelf_days": 30, "unit_price": 280, "risk_value": 77000, "disposal_status": "尚在原庫"}, {"food_name": "番茄", "batch_id": "BATCH1079", "receive_date": "2026-08-24", "expiry_date": "2026-09-07", "days_left": 95, "status": "🟢 安全", "stock_qty": 10, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 33, "risk_value": 330, "disposal_status": "尚在原庫"}, {"food_name": "醬油", "batch_id": "BATCH1080", "receive_date": "2026-09-25", "expiry_date": "2027-09-25", "days_left": 478, "status": "🟢 安全", "stock_qty": 82, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 35, "risk_value": 2870, "disposal_status": "尚在原庫"}, {"food_name": "白米", "batch_id": "BATCH1081", "receive_date": "2026-10-26", "expiry_date": "2027-10-26", "days_left": 509, "status": "🟢 安全", "stock_qty": 445, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 38, "risk_value": 16910, "disposal_status": "尚在原庫"}, {"food_name": "番茄", "batch_id": "BATCH1082", "receive_date": "2026-11-27", "expiry_date": "2026-12-11", "days_left": 190, "status": "🟢 安全", "stock_qty": 126, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 33, "risk_value": 4158, "disposal_status": "尚在原庫"}, {"food_name": "起司", "batch_id": "BATCH1083", "receive_date": "2026-01-28", "expiry_date": "2026-02-27", "days_left": -97, "status": "❌ 已過期", "stock_qty": 257, "storage": "冷藏庫", "shelf_days": 30, "unit_price": 280, "risk_value": 71960, "disposal_status": "尚在原庫"}, {"food_name": "洋蔥", "batch_id": "BATCH1084", "receive_date": "2026-01-01", "expiry_date": "2026-01-15", "days_left": -140, "status": "❌ 已過期", "stock_qty": 176, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 20, "risk_value": 3520, "disposal_status": "尚在原庫"}, {"food_name": "雞胸肉", "batch_id": "BATCH1085", "receive_date": "2026-02-02", "expiry_date": "2026-04-03", "days_left": -62, "status": "❌ 已過期", "stock_qty": 348, "storage": "冷凍庫", "shelf_days": 60, "unit_price": 85, "risk_value": 29580, "disposal_status": "尚在原庫"}, {"food_name": "洋蔥", "batch_id": "BATCH1086", "receive_date": "2026-03-03", "expiry_date": "2026-03-17", "days_left": -79, "status": "❌ 已過期", "stock_qty": 357, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 20, "risk_value": 7140, "disposal_status": "尚在原庫"}, {"food_name": "豆腐", "batch_id": "BATCH1087", "receive_date": "2026-04-04", "expiry_date": "2026-04-09", "days_left": -56, "status": "❌ 已過期", "stock_qty": 333, "storage": "冷藏庫", "shelf_days": 5, "unit_price": 25, "risk_value": 8325, "disposal_status": "尚在原庫"}, {"food_name": "鮭魚", "batch_id": "BATCH1088", "receive_date": "2026-05-05", "expiry_date": "2026-08-03", "days_left": 60, "status": "🟢 安全", "stock_qty": 12, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 260, "risk_value": 3120, "disposal_status": "尚在原庫"}, {"food_name": "紅蘿蔔", "batch_id": "BATCH1089", "receive_date": "2026-06-06", "expiry_date": "2026-06-20", "days_left": 16, "status": "🟡 注意", "stock_qty": 76, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 13, "risk_value": 988, "disposal_status": "尚在原庫"}, {"food_name": "豬絞肉", "batch_id": "BATCH1090", "receive_date": "2026-07-07", "expiry_date": "2026-09-05", "days_left": 93, "status": "🟢 安全", "stock_qty": 396, "storage": "冷凍庫", "shelf_days": 60, "unit_price": 120, "risk_value": 47520, "disposal_status": "尚在原庫"}, {"food_name": "菇類", "batch_id": "BATCH1091", "receive_date": "2026-03-08", "expiry_date": "2026-03-15", "days_left": -81, "status": "❌ 已過期", "stock_qty": 334, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 80, "risk_value": 26720, "disposal_status": "尚在原庫"}, {"food_name": "雞蛋", "batch_id": "BATCH1092", "receive_date": "2026-09-09", "expiry_date": "2026-10-09", "days_left": 127, "status": "🟢 安全", "stock_qty": 461, "storage": "冷藏庫", "shelf_days": 30, "unit_price": 55, "risk_value": 25355, "disposal_status": "尚在原庫"}, {"food_name": "雞蛋", "batch_id": "BATCH1093", "receive_date": "2026-10-10", "expiry_date": "2026-11-09", "days_left": 158, "status": "🟢 安全", "stock_qty": 199, "storage": "冷藏庫", "shelf_days": 30, "unit_price": 55, "risk_value": 10945, "disposal_status": "尚在原庫"}, {"food_name": "菇類", "batch_id": "BATCH1094", "receive_date": "2026-11-11", "expiry_date": "2026-11-18", "days_left": 167, "status": "🟢 安全", "stock_qty": 150, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 80, "risk_value": 12000, "disposal_status": "尚在原庫"}, {"food_name": "馬鈴薯", "batch_id": "BATCH1095", "receive_date": "2026-12-12", "expiry_date": "2026-12-19", "days_left": 198, "status": "🟢 安全", "stock_qty": 408, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 21, "risk_value": 8568, "disposal_status": "尚在原庫"}, {"food_name": "起司", "batch_id": "BATCH1096", "receive_date": "2026-01-13", "expiry_date": "2026-02-12", "days_left": -112, "status": "❌ 已過期", "stock_qty": 239, "storage": "冷藏庫", "shelf_days": 30, "unit_price": 280, "risk_value": 66920, "disposal_status": "尚在原庫"}, {"food_name": "牛奶", "batch_id": "BATCH1097", "receive_date": "2026-02-14", "expiry_date": "2026-02-24", "days_left": -100, "status": "❌ 已過期", "stock_qty": 290, "storage": "冷藏庫", "shelf_days": 10, "unit_price": 40, "risk_value": 11600, "disposal_status": "尚在原庫"}, {"food_name": "麵粉", "batch_id": "BATCH1098", "receive_date": "2026-03-15", "expiry_date": "2027-03-15", "days_left": 284, "status": "🟢 安全", "stock_qty": 250, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 22, "risk_value": 5500, "disposal_status": "尚在原庫"}, {"food_name": "紅蘿蔔", "batch_id": "BATCH1099", "receive_date": "2026-04-16", "expiry_date": "2026-04-30", "days_left": -35, "status": "❌ 已過期", "stock_qty": 388, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 13, "risk_value": 5044, "disposal_status": "尚在原庫"}, {"food_name": "雞蛋", "batch_id": "BATCH1100", "receive_date": "2026-05-17", "expiry_date": "2026-06-16", "days_left": 12, "status": "🟡 注意", "stock_qty": 269, "storage": "冷藏庫", "shelf_days": 30, "unit_price": 55, "risk_value": 14795, "disposal_status": "尚在原庫"}, {"food_name": "鮭魚", "batch_id": "BATCH1101", "receive_date": "2026-06-18", "expiry_date": "2026-09-16", "days_left": 104, "status": "🟢 安全", "stock_qty": 143, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 260, "risk_value": 37180, "disposal_status": "尚在原庫"}, {"food_name": "紅蘿蔔", "batch_id": "BATCH1102", "receive_date": "2026-07-19", "expiry_date": "2026-08-02", "days_left": 59, "status": "🟢 安全", "stock_qty": 43, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 13, "risk_value": 559, "disposal_status": "尚在原庫"}, {"food_name": "醬油", "batch_id": "BATCH1103", "receive_date": "2026-08-20", "expiry_date": "2027-08-20", "days_left": 442, "status": "🟢 安全", "stock_qty": 181, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 35, "risk_value": 6335, "disposal_status": "尚在原庫"}, {"food_name": "高麗菜", "batch_id": "BATCH1104", "receive_date": "2026-04-21", "expiry_date": "2026-04-28", "days_left": -37, "status": "❌ 已過期", "stock_qty": 368, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 21, "risk_value": 7728, "disposal_status": "尚在原庫"}, {"food_name": "紅蘿蔔", "batch_id": "BATCH1105", "receive_date": "2026-10-22", "expiry_date": "2026-11-05", "days_left": 154, "status": "🟢 安全", "stock_qty": 55, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 13, "risk_value": 715, "disposal_status": "尚在原庫"}, {"food_name": "食用油", "batch_id": "BATCH1106", "receive_date": "2026-11-23", "expiry_date": "2027-11-23", "days_left": 537, "status": "🟢 安全", "stock_qty": 112, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 60, "risk_value": 6720, "disposal_status": "尚在原庫"}, {"food_name": "砂糖", "batch_id": "BATCH1107", "receive_date": "2026-12-24", "expiry_date": "2027-12-24", "days_left": 568, "status": "🟢 安全", "stock_qty": 279, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 30, "risk_value": 8370, "disposal_status": "尚在原庫"}, {"food_name": "砂糖", "batch_id": "BATCH1108", "receive_date": "2026-02-25", "expiry_date": "2027-02-25", "days_left": 266, "status": "🟢 安全", "stock_qty": 223, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 30, "risk_value": 6690, "disposal_status": "尚在原庫"}, {"food_name": "砂糖", "batch_id": "BATCH1109", "receive_date": "2026-02-26", "expiry_date": "2027-02-26", "days_left": 267, "status": "🟢 安全", "stock_qty": 148, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 30, "risk_value": 4440, "disposal_status": "尚在原庫"}, {"food_name": "蝦仁", "batch_id": "BATCH1110", "receive_date": "2026-03-27", "expiry_date": "2026-06-25", "days_left": 21, "status": "🟡 注意", "stock_qty": 257, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 220, "risk_value": 56540, "disposal_status": "尚在原庫"}, {"food_name": "醬油", "batch_id": "BATCH1111", "receive_date": "2026-05-28", "expiry_date": "2027-05-28", "days_left": 358, "status": "🟢 安全", "stock_qty": 441, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 35, "risk_value": 15435, "disposal_status": "尚在原庫"}, {"food_name": "番茄", "batch_id": "BATCH1112", "receive_date": "2026-06-01", "expiry_date": "2026-06-15", "days_left": 11, "status": "🟡 注意", "stock_qty": 229, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 33, "risk_value": 7557, "disposal_status": "尚在原庫"}, {"food_name": "食用油", "batch_id": "BATCH1113", "receive_date": "2026-06-02", "expiry_date": "2027-06-02", "days_left": 363, "status": "🟢 安全", "stock_qty": 276, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 60, "risk_value": 16560, "disposal_status": "尚在原庫"}, {"food_name": "洋蔥", "batch_id": "BATCH1114", "receive_date": "2026-07-03", "expiry_date": "2026-07-17", "days_left": 43, "status": "🟢 安全", "stock_qty": 262, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 20, "risk_value": 5240, "disposal_status": "尚在原庫"}, {"food_name": "砂糖", "batch_id": "BATCH1115", "receive_date": "2026-03-04", "expiry_date": "2027-03-04", "days_left": 273, "status": "🟢 安全", "stock_qty": 252, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 30, "risk_value": 7560, "disposal_status": "尚在原庫"}, {"food_name": "鮭魚", "batch_id": "BATCH1116", "receive_date": "2026-09-05", "expiry_date": "2026-12-04", "days_left": 183, "status": "🟢 安全", "stock_qty": 268, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 260, "risk_value": 69680, "disposal_status": "尚在原庫"}, {"food_name": "麵粉", "batch_id": "BATCH1117", "receive_date": "2026-05-06", "expiry_date": "2027-05-06", "days_left": 336, "status": "🟢 安全", "stock_qty": 358, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 22, "risk_value": 7876, "disposal_status": "尚在原庫"}, {"food_name": "菇類", "batch_id": "BATCH1118", "receive_date": "2026-11-07", "expiry_date": "2026-11-14", "days_left": 163, "status": "🟢 安全", "stock_qty": 1, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 80, "risk_value": 80, "disposal_status": "尚在原庫"}, {"food_name": "麵粉", "batch_id": "BATCH1119", "receive_date": "2026-01-08", "expiry_date": "2027-01-08", "days_left": 218, "status": "🟢 安全", "stock_qty": 451, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 22, "risk_value": 9922, "disposal_status": "尚在原庫"}, {"food_name": "番茄", "batch_id": "BATCH1120", "receive_date": "2026-01-09", "expiry_date": "2026-01-23", "days_left": -132, "status": "❌ 已過期", "stock_qty": 13, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 33, "risk_value": 429, "disposal_status": "尚在原庫"}, {"food_name": "紅蘿蔔", "batch_id": "BATCH1121", "receive_date": "2026-03-10", "expiry_date": "2026-03-24", "days_left": -72, "status": "❌ 已過期", "stock_qty": 212, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 13, "risk_value": 2756, "disposal_status": "尚在原庫"}, {"food_name": "蝦仁", "batch_id": "BATCH1122", "receive_date": "2026-03-11", "expiry_date": "2026-06-09", "days_left": 5, "status": "🔴 緊迫即期", "stock_qty": 18, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 220, "risk_value": 3960, "disposal_status": "尚在原庫"}, {"food_name": "奶油", "batch_id": "BATCH1123", "receive_date": "2026-05-12", "expiry_date": "2026-05-19", "days_left": -16, "status": "❌ 已過期", "stock_qty": 219, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 180, "risk_value": 39420, "disposal_status": "尚在原庫"}, {"food_name": "麵粉", "batch_id": "BATCH1124", "receive_date": "2026-05-13", "expiry_date": "2027-05-13", "days_left": 343, "status": "🟢 安全", "stock_qty": 330, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 22, "risk_value": 7260, "disposal_status": "尚在原庫"}, {"food_name": "紅蘿蔔", "batch_id": "BATCH1125", "receive_date": "2026-06-14", "expiry_date": "2026-06-28", "days_left": 24, "status": "🟡 注意", "stock_qty": 44, "storage": "冷藏庫", "shelf_days": 14, "unit_price": 13, "risk_value": 572, "disposal_status": "尚在原庫"}, {"food_name": "鮭魚", "batch_id": "BATCH1126", "receive_date": "2026-07-15", "expiry_date": "2026-10-13", "days_left": 131, "status": "🟢 安全", "stock_qty": 84, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 260, "risk_value": 21840, "disposal_status": "尚在原庫"}, {"food_name": "馬鈴薯", "batch_id": "BATCH1127", "receive_date": "2026-08-16", "expiry_date": "2026-08-23", "days_left": 80, "status": "🟢 安全", "stock_qty": 94, "storage": "冷藏庫", "shelf_days": 7, "unit_price": 21, "risk_value": 1974, "disposal_status": "尚在原庫"}, {"food_name": "麵粉", "batch_id": "BATCH1128", "receive_date": "2026-09-17", "expiry_date": "2027-09-17", "days_left": 470, "status": "🟢 安全", "stock_qty": 366, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 22, "risk_value": 8052, "disposal_status": "尚在原庫"}, {"food_name": "白米", "batch_id": "BATCH1129", "receive_date": "2026-10-18", "expiry_date": "2027-10-18", "days_left": 501, "status": "🟢 安全", "stock_qty": 380, "storage": "常溫雜貨庫", "shelf_days": 365, "unit_price": 38, "risk_value": 14440, "disposal_status": "尚在原庫"}, {"food_name": "蝦仁", "batch_id": "BATCH1130", "receive_date": "2026-08-20", "expiry_date": "2026-11-18", "days_left": 167, "status": "🟢 安全", "stock_qty": 197, "storage": "冷凍庫", "shelf_days": 90, "unit_price": 220, "risk_value": 43340, "disposal_status": "尚在原庫"}];
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+let data = RAW_DATA.map(r => ({...r}));
+let filterStatus = 'all';
+let sortCol = 'days_left';
+let sortDir = 1;
+let currentPage = 1;
+const PAGE_SIZE = 20;
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+const fmt = n => n.toLocaleString('zh-TW');
+const today = new Date();
+const todayStr = today.toLocaleDateString('zh-TW', {year:'numeric',month:'long',day:'numeric',weekday:'long'});
+
+function getStatusClass(d) {
+  if (d.days_left < 0) return 'expired';
+  if (d.days_left <= 7) return 'critical';
+  if (d.days_left <= 14) return 'notice';
+  return 'safe';
+}
+
+// ── FIFO: group by food_name, sort by days_left, mark first non-expired ──
+function buildFifo() {
+  const groups = {};
+  data.forEach(r => {
+    if (!groups[r.food_name]) groups[r.food_name] = [];
+    groups[r.food_name].push(r);
+  });
+  // mark FIFO flag on each item
+  data.forEach(r => r._fifo = false);
+  Object.values(groups).forEach(items => {
+    const sorted = [...items].sort((a,b) => a.days_left - b.days_left);
+    // first non-expired item = FIFO priority
+    const first = sorted.find(r => r.days_left > 0);
+    if (first) first._fifo = true;
+  });
+  return groups;
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────
+function init() {
+  document.getElementById('header-date').textContent = todayStr;
+  document.getElementById('modal-date').textContent = `查詢日期：${todayStr}`;
+  buildFifo();
+  renderKPI();
+  renderFifoPanel();
+  renderTableHead();
+  renderTable();
+  renderModal();
+}
+
+// ── KPI ──────────────────────────────────────────────────────────────────
+function renderKPI() {
+  // 已報廢品項從各統計中排除（庫存已歸零，不納入有效庫存統計）
+  const activeExpired = data.filter(d => d.days_left < 0 && d.disposal_status !== '已報廢');
+  const expired  = activeExpired.length;
+  const critical = data.filter(d => d.days_left >= 0 && d.days_left <= 7).length;
+  const notice   = data.filter(d => d.days_left > 7 && d.days_left <= 14).length;
+  const safe     = data.filter(d => d.days_left > 14).length;
+  const expiredRisk = activeExpired.reduce((s,d) => s+d.risk_value, 0);
+  const weekRisk = data.filter(d => d.days_left >= 0 && d.days_left <= 7).reduce((s,d) => s+d.risk_value, 0);
+
+  document.getElementById('kpi-grid').innerHTML = `
+    <div class="kpi-card red" style="cursor:pointer" onclick="switchTab('scrap')" title="點此前往報廢作業">
+      <div class="kpi-label">❌ 已過期品項 <span style="font-size:10px;opacity:.7">→ 點此報廢</span></div>
+      <div class="kpi-val">${expired}</div>
+      <div class="kpi-sub">尚在原庫待處理 ${fmt(expiredRisk)} 元</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">🔴 緊迫即期（≤7天）</div>
+      <div class="kpi-val" style="color:var(--orange)">${critical}</div>
+      <div class="kpi-sub">本週風險金額 NT$ ${fmt(weekRisk)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">🟡 注意（8–14天）</div>
+      <div class="kpi-val" style="color:var(--yellow)">${notice}</div>
+      <div class="kpi-sub">次週應優先安排耗用</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">🟢 安全庫存</div>
+      <div class="kpi-val" style="color:var(--green)">${safe}</div>
+      <div class="kpi-sub">共 ${data.length} 筆批號紀錄</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">💰 總庫存估值</div>
+      <div class="kpi-val" style="color:var(--blue);font-size:20px">NT$ ${fmt(data.reduce((s,d)=>s+d.risk_value,0))}</div>
+      <div class="kpi-sub">20 種食材 · 3 個庫別</div>
+    </div>
+  `;
+}
+
+// ── FIFO PANEL ────────────────────────────────────────────────────────────
+function renderFifoPanel() {
+  const groups = {};
+  data.forEach(r => {
+    if (!groups[r.food_name]) groups[r.food_name] = [];
+    groups[r.food_name].push(r);
+  });
+  // Only show foods with >=2 valid (non-expired, stock>0) batches
+  const multiGroup = Object.entries(groups).filter(([, items]) => {
+    const valid = items.filter(r => r.days_left >= 0 && r.stock_qty > 0);
+    return valid.length > 1;
+  });
+
+  if (!multiGroup.length) {
+    document.getElementById('fifo-grid').innerHTML = '<div style="color:var(--text3);font-size:13px;padding:12px">目前無需 FIFO 管理的品項（無同品項多批次有效庫存）</div>';
+    return;
+  }
+
+  document.getElementById('fifo-grid').innerHTML = multiGroup.map(([name, items]) => {
+    // Only valid batches, sorted by days_left ascending (shortest first)
+    const valid = items.filter(r => r.days_left >= 0 && r.stock_qty > 0)
+                       .sort((a, b) => a.days_left - b.days_left);
+    const expired = items.filter(r => r.days_left < 0 && r.stock_qty > 0);
+    const cardId = 'fifo-' + name.replace(/[^a-zA-Z0-9]/g, '_');
+
+    const renderBatch = (r, i) => {
+      const cls = r.days_left <= 7 ? 'color:var(--orange)' : r.days_left <= 14 ? 'color:var(--yellow)' : 'color:var(--green)';
+      return `<div class="fifo-batch">
+        <span><span class="fifo-order">${i+1}</span><span class="fb-batch">${r.batch_id}</span></span>
+        <span class="fb-days" style="${cls}">剩${r.days_left}天</span>
+        <span class="fb-qty">庫存 ${r.stock_qty}</span>
+      </div>`;
+    };
+
+    const FOLD = 4;
+    const preview = valid.slice(0, FOLD).map((r, i) => renderBatch(r, i)).join('');
+    const extra   = valid.slice(FOLD);
+    const extraHtml = extra.map((r, i) => renderBatch(r, FOLD + i)).join('');
+    const moreBtn = extra.length > 0
+      ? `<div id="${cardId}-more" style="display:none">${extraHtml}</div>
+         <div style="margin-top:6px;text-align:right">
+           <button class="btn btn-ghost" style="font-size:11px;padding:3px 12px"
+             onclick="toggleFifoExpand('${cardId}', this)">
+             ▼ 展開其餘 ${extra.length} 批
+           </button>
+         </div>`
+      : '';
+
+    const expiredNote = expired.length > 0
+      ? `<div style="font-size:11px;color:var(--red);margin-top:8px;padding-top:6px;border-top:1px solid var(--border)">
+           ⚠ 另有 ${expired.length} 批已過期（需確認處置）
+         </div>`
+      : '';
+
+    return `<div class="fifo-item">
+      <div class="fi-name">${name}
+        <span style="font-size:11px;color:var(--text3);font-weight:400">${valid.length} 批有效</span>
+      </div>
+      ${preview}${moreBtn}${expiredNote}
+    </div>`;
+  }).join('');
+}
+
+function toggleFifoExpand(cardId, btn) {
+  const el = document.getElementById(cardId + '-more');
+  const expanded = el.style.display !== 'none';
+  el.style.display = expanded ? 'none' : 'block';
+  btn.textContent = expanded
+    ? '▼ 展開其餘 ' + el.querySelectorAll('.fifo-batch').length + ' 批'
+    : '▲ 收合';
+}
+
+// ── TABLE HEAD ────────────────────────────────────────────────────────────
+const COLS = [
+  { key:'food_name',  label:'食材名稱' },
+  { key:'batch_id',   label:'批號' },
+  { key:'storage',    label:'庫別' },
+  { key:'receive_date', label:'進貨日期' },
+  { key:'expiry_date',  label:'到期日' },
+  { key:'days_left',  label:'剩餘天數' },
+  { key:'status',     label:'狀態' },
+  { key:'stock_qty',  label:'庫存量' },
+  { key:'unit_price', label:'單價(NT$/kg)' },
+  { key:'risk_value', label:'風險金額(NT$)' },
+  { key:'disposal_status', label:'過期處置狀態' },
+];
+
+function renderTableHead() {
+  document.getElementById('table-head').innerHTML = COLS.map(c => `
+    <th onclick="sortBy('${c.key}')">
+      ${c.label}
+      <span class="sort-icon">${sortCol===c.key ? (sortDir===1?'↑':'↓') : '↕'}</span>
+    </th>
+  `).join('');
+}
+
+function sortBy(col) {
+  if (sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = 1; }
+  currentPage = 1;
+  renderTableHead();
+  renderTable();
+}
+
+// ── TABLE BODY ────────────────────────────────────────────────────────────
+function getFiltered() {
+  const search = document.getElementById('search-input').value.toLowerCase();
+  const storage = document.getElementById('storage-filter').value;
+  const disposal = document.getElementById('disposal-filter').value;
+  return data.filter(d => {
+    if (filterStatus === 'expired'  && !(d.days_left < 0)) return false;
+    if (filterStatus === 'critical' && !(d.days_left >= 0 && d.days_left <= 7)) return false;
+    if (filterStatus === 'notice'   && !(d.days_left > 7 && d.days_left <= 14)) return false;
+    if (filterStatus === 'safe'     && !(d.days_left > 14)) return false;
+    if (storage !== 'all' && d.storage !== storage) return false;
+    if (disposal !== 'all' && d.disposal_status !== disposal) return false;
+    if (search && !d.food_name.includes(search) && !d.batch_id.toLowerCase().includes(search)) return false;
+    return true;
+  }).sort((a,b) => {
+    let va = a[sortCol], vb = b[sortCol];
+    if (typeof va === 'string') return va.localeCompare(vb, 'zh-TW') * sortDir;
+    return (va - vb) * sortDir;
+  });
+}
+
+function statusBadge(d) {
+  if (d.days_left < 0) return `<span class="badge badge-expired">❌ 已過期</span>`;
+  if (d.days_left <= 7) return `<span class="badge badge-critical">🔴 緊迫即期</span>`;
+  if (d.days_left <= 14) return `<span class="badge badge-notice">🟡 注意</span>`;
+  return `<span class="badge badge-safe">🟢 安全</span>`;
+}
+
+function daysBar(d) {
+  const max = d.shelf_days;
+  const pct = d.days_left <= 0 ? 0 : Math.min(100, (d.days_left / max) * 100);
+  const color = d.days_left < 0 ? '#f85149' : d.days_left <= 7 ? '#ff6b2b' : d.days_left <= 14 ? '#d29922' : '#3fb950';
+  return `<div class="days-bar-wrap">
+    <span class="days-num" style="color:${color}">${d.days_left}</span>
+    <div class="days-bar"><div class="days-fill" style="width:${pct}%;background:${color}"></div></div>
+  </div>`;
+}
+
+function riskChip(v) {
+  const cls = v >= 50000 ? 'risk-high' : v >= 10000 ? 'risk-med' : 'risk-low';
+  return `<span class="risk-chip ${cls}">NT$ ${fmt(v)}</span>`;
+}
+
+function storageColor(s) {
+  return s === '冷藏庫' ? '#58a6ff' : s === '冷凍庫' ? '#bc8cff' : '#e3973e';
+}
+
+function disposalSelect(batch_id, current) {
+  const opts = ['尚在原庫','已轉移至報廢倉','已報廢'];
+  const idx = opts.indexOf(current);
+  const clsMap = ['status-0','status-1','status-2'];
+  return `<select class="disposal-select ${clsMap[idx]}" onchange="updateDisposal('${batch_id}',this)">
+    ${opts.map(o => `<option${o===current?' selected':''}>${o}</option>`).join('')}
+  </select>`;
+}
+
+function updateDisposal(batch_id, sel) {
+  const d = data.find(r => r.batch_id === batch_id);
+  if (d) {
+    d.disposal_status = sel.value;
+    if (sel.value === '已報廢') {
+      d.stock_qty = 0;
+      d.risk_value = 0;
+    }
+  }
+  const idx = ['尚在原庫','已轉移至報廢倉','已報廢'].indexOf(sel.value);
+  sel.className = `disposal-select ${'status-0 status-1 status-2'.split(' ')[idx]}`;
+  refresh();
+}
+
+function renderTable() {
+  const filtered = getFiltered();
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+  const pageData = filtered.slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE);
+
+  document.getElementById('table-body').innerHTML = pageData.length === 0
+    ? `<tr><td colspan="${COLS.length}" class="no-results">沒有符合條件的資料</td></tr>`
+    : pageData.map(d => {
+    const scrapped = d.disposal_status === '已報廢';
+    return `<tr style="${scrapped ? 'opacity:0.4' : ''}">
+      <td><strong style="${scrapped ? 'text-decoration:line-through' : ''}">${d.food_name}</strong>${d._fifo ? '<span class="fifo-tag">FIFO</span>' : ''}</td>
+      <td class="td-mono" style="color:var(--text2)">${d.batch_id}</td>
+      <td><span style="color:${storageColor(d.storage)};font-size:12px">●</span> ${d.storage}</td>
+      <td class="td-mono" style="color:var(--text3)">${d.receive_date}</td>
+      <td class="td-mono" style="color:var(--text2)">${d.expiry_date}</td>
+      <td>${daysBar(d)}</td>
+      <td>${scrapped ? '<span class="badge" style="background:#1a2d1a;color:#3fb950;border:1px solid #2ea043">✓ 已報廢</span>' : statusBadge(d)}</td>
+      <td class="td-mono td-right">${scrapped ? '<span style="color:var(--text3)">—</span>' : fmt(d.stock_qty)}</td>
+      <td class="td-mono td-right" style="color:var(--text2)">${d.unit_price}</td>
+      <td class="td-right">${scrapped ? '<span style="color:var(--text3)">—</span>' : riskChip(d.risk_value)}</td>
+      <td>${disposalSelect(d.batch_id, d.disposal_status)}</td>
+    </tr>`;
+  }).join('');
+
+  // pagination
+  document.getElementById('pg-info').textContent = `共 ${total} 筆 · 第 ${currentPage}/${totalPages} 頁`;
+  const btns = [];
+  btns.push(`<button class="pg-btn" onclick="goPage(${currentPage-1})" ${currentPage<=1?'disabled':''}>‹</button>`);
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || Math.abs(i - currentPage) <= 1)
+      btns.push(`<button class="pg-btn${i===currentPage?' active':''}" onclick="goPage(${i})">${i}</button>`);
+    else if (Math.abs(i - currentPage) === 2)
+      btns.push(`<span style="color:var(--text3);padding:0 4px">…</span>`);
+  }
+  btns.push(`<button class="pg-btn" onclick="goPage(${currentPage+1})" ${currentPage>=totalPages?'disabled':''}>›</button>`);
+  document.getElementById('pg-btns').innerHTML = btns.join('');
+}
+
+function goPage(p) { currentPage = p; renderTable(); }
+
+function setFilter(f, btn) {
+  filterStatus = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentPage = 1;
+  renderTable();
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────
+function renderModal() {
+  const critical = data.filter(d => d.days_left >= 0 && d.days_left <= 7).sort((a,b) => a.days_left - b.days_left);
+  const notice   = data.filter(d => d.days_left > 7 && d.days_left <= 14).sort((a,b) => a.days_left - b.days_left);
+  const expired  = data.filter(d => d.days_left < 0 && d.disposal_status === '尚在原庫').sort((a,b) => a.days_left - b.days_left).slice(0, 8);
+
+  let html = '';
+
+  if (critical.length) {
+    html += `<div class="modal-section"><h3>🔴 緊迫即期 — 本週必須優先耗用（剩餘 ≤ 7 天）</h3>`;
+    html += critical.map(d => `
+      <div class="modal-item critical">
+        <span class="mi-name">${d.food_name}</span>
+        <span class="mi-detail">${d.batch_id} · ${d.storage} · 庫存 ${d.stock_qty} · 到期 ${d.expiry_date}</span>
+        <span class="mi-badge">剩 ${d.days_left} 天</span>
+      </div>`).join('');
+    html += `</div>`;
+  }
+
+  if (notice.length) {
+    html += `<div class="modal-section"><h3>🟡 注意 — 次週應安排耗用（剩餘 8–14 天）</h3>`;
+    html += notice.map(d => `
+      <div class="modal-item notice">
+        <span class="mi-name">${d.food_name}</span>
+        <span class="mi-detail">${d.batch_id} · ${d.storage} · 庫存 ${d.stock_qty} · 到期 ${d.expiry_date}</span>
+        <span class="mi-badge">剩 ${d.days_left} 天</span>
+      </div>`).join('');
+    html += `</div>`;
+  }
+
+  if (expired.length) {
+    html += `<div class="modal-section"><h3>⚠️ 已過期 — 尚在原庫（待確認處置狀態）</h3>`;
+    html += expired.map(d => `
+      <div class="modal-item warning">
+        <span class="mi-name">${d.food_name}</span>
+        <span class="mi-detail">${d.batch_id} · ${d.storage} · 庫存 ${d.stock_qty} · 風險金額 NT$ ${fmt(d.risk_value)}</span>
+        <span class="mi-badge">過期 ${Math.abs(d.days_left)} 天</span>
+      </div>`).join('');
+    html += `</div>`;
+  }
+
+  if (!critical.length && !notice.length && !expired.length) {
+    html = `<div style="text-align:center;padding:30px;color:var(--green);font-size:16px">✅ 本週無緊急耗用需求，庫存狀況良好！</div>`;
+  }
+
+  document.getElementById('modal-content').innerHTML = html;
+}
+
+function openModal()  { document.getElementById('modal-overlay').style.display='flex'; renderModal(); }
+function closeModal() { document.getElementById('modal-overlay').style.display='none'; }
+
+
+// ── SCRAP PAGE ─────────────────────────────────────────────────────────────
+let scrapLogs = [];
+
+function renderScrapPage() {
+  const expired = data.filter(d => d.days_left < 0 && d.stock_qty > 0)
+                      .sort((a, b) => a.days_left - b.days_left);
+
+  // Summary bar
+  const total = expired.length;
+  const totalRisk = expired.reduce((s, d) => s + d.risk_value, 0);
+  const pending = expired.filter(d => d.disposal_status === '尚在原庫').length;
+  const moved   = expired.filter(d => d.disposal_status === '已轉移至報廢倉').length;
+  const done    = expired.filter(d => d.disposal_status === '已報廢').length;
+
+  document.getElementById('scrap-summary').innerHTML = `
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 16px;font-size:12px">
+      <span style="color:var(--text3)">共計</span>
+      <span style="font-weight:700;margin:0 4px">${total}</span>
+      <span style="color:var(--text3)">筆過期品項</span>
+    </div>
+    <div style="background:var(--red-bg);border:1px solid var(--red);border-radius:8px;padding:8px 16px;font-size:12px">
+      <span style="color:var(--red)">⚠ 尚在原庫 ${pending} 筆</span>
+    </div>
+    <div style="background:var(--orange-bg);border:1px solid var(--orange);border-radius:8px;padding:8px 16px;font-size:12px">
+      <span style="color:var(--orange)">🚚 轉移中 ${moved} 筆</span>
+    </div>
+    <div style="background:var(--green-bg);border:1px solid var(--green);border-radius:8px;padding:8px 16px;font-size:12px">
+      <span style="color:var(--green)">✓ 已報廢 ${done} 筆</span>
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 16px;font-size:12px">
+      <span style="color:var(--text3)">報廢估值</span>
+      <span style="font-family:JetBrains Mono,monospace;color:var(--red);font-weight:700;margin-left:6px">
+        NT$ ${fmt(totalRisk)}
+      </span>
+    </div>
+  `;
+
+  if (!expired.length) {
+    document.getElementById('scrap-table-body').innerHTML =
+      '<tr><td colspan="11" class="no-results">✅ 目前無過期品項，庫存狀況正常</td></tr>';
+    document.getElementById('scrap-check-all').disabled = true;
+    return;
+  }
+
+  document.getElementById('scrap-check-all').disabled = false;
+  document.getElementById('scrap-check-all').checked = false;
+
+  const statusColor = s => s === '已報廢' ? 'var(--green)' : s === '已轉移至報廢倉' ? 'var(--yellow)' : 'var(--red)';
+  const statusIcon  = s => s === '已報廢' ? '✓' : s === '已轉移至報廢倉' ? '🚚' : '⚠';
+
+  document.getElementById('scrap-table-body').innerHTML = expired.map(d => `
+    <tr id="scrap-row-${d.batch_id}" class="${d.disposal_status === '已報廢' ? '' : ''}">
+      <td style="text-align:center">
+        <input type="checkbox" class="scrap-check" data-batch="${d.batch_id}"
+          style="cursor:pointer" onchange="scrapUpdateCheckAll()">
+      </td>
+      <td><strong>${d.food_name}</strong></td>
+      <td class="td-mono" style="font-size:11px;color:var(--text2)">${d.batch_id}</td>
+      <td><span style="color:${storageColor(d.storage)};font-size:12px">●</span> ${d.storage}</td>
+      <td class="td-mono" style="font-size:11px">${d.expiry_date}</td>
+      <td class="td-mono" style="color:var(--red)">過期 ${Math.abs(d.days_left)} 天</td>
+      <td class="td-mono td-right">${fmt(d.stock_qty)}</td>
+      <td class="td-mono td-right" style="color:var(--text2)">${d.unit_price}</td>
+      <td class="td-mono td-right" style="color:var(--red);font-weight:600">NT$ ${fmt(d.risk_value)}</td>
+      <td>
+        <span style="color:${statusColor(d.disposal_status)};font-size:12px;font-weight:600">
+          ${statusIcon(d.disposal_status)} ${d.disposal_status}
+        </span>
+      </td>
+      <td>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${d.disposal_status !== '已轉移至報廢倉' && d.disposal_status !== '已報廢' ? `
+            <button class="btn btn-ghost" style="font-size:11px;padding:3px 10px;color:var(--yellow);border-color:var(--yellow)"
+              onclick="scrapSingle('${d.batch_id}','已轉移至報廢倉')">轉移至報廢倉</button>` : ''}
+          ${d.disposal_status !== '已報廢' ? `
+            <button class="btn btn-ghost" style="font-size:11px;padding:3px 10px;color:var(--red);border-color:var(--red)"
+              onclick="scrapSingle('${d.batch_id}','已報廢')">確認報廢</button>` : `
+            <span style="font-size:11px;color:var(--green)">✓ 已完成</span>`}
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// Single row action
+function scrapSingle(batch_id, newStatus) {
+  const d = data.find(r => r.batch_id === batch_id);
+  if (!d) return;
+  const prev = d.disposal_status;
+  const logQty = d.stock_qty;
+  const logRisk = d.risk_value;
+  d.disposal_status = newStatus;
+
+  // 確認報廢時才將庫存歸零
+  if (newStatus === '已報廢') {
+    d.stock_qty = 0;
+    d.risk_value = 0;
+  }
+
+  scrapLogs.unshift({
+    time: new Date().toLocaleString('zh-TW'),
+    food: d.food_name, batch: batch_id,
+    qty: logQty, risk: logRisk,
+    status: newStatus, remark: ''
+  });
+  addTxn('報廢', d.food_name, batch_id, logQty, 0, `處置狀態更新：${prev} → ${newStatus}`);
+
+  renderScrapLog();
+  renderScrapPage();
+  refresh();
+  showToast(`✅ ${d.food_name} ${batch_id} 已更新為「${newStatus}」`);
+}
+
+// Batch action on checked rows
+function scrapBatch(newStatus) {
+  const checked = [...document.querySelectorAll('.scrap-check:checked')];
+  if (!checked.length) { showToast('請先勾選要操作的品項', true); return; }
+  checked.forEach(cb => {
+    const d = data.find(r => r.batch_id === cb.dataset.batch);
+    if (!d || d.disposal_status === newStatus) return;
+    const prev = d.disposal_status;
+    const logQty = d.stock_qty;
+    const logRisk = d.risk_value;
+    d.disposal_status = newStatus;
+    if (newStatus === '已報廢') {
+      d.stock_qty = 0;
+      d.risk_value = 0;
+    }
+    scrapLogs.unshift({
+      time: new Date().toLocaleString('zh-TW'),
+      food: d.food_name, batch: d.batch_id,
+      qty: logQty, risk: logRisk,
+      status: newStatus, remark: '批次操作'
+    });
+    addTxn('報廢', d.food_name, d.batch_id, logQty, 0, `批次處置：${prev} → ${newStatus}`);
+  });
+  renderScrapLog();
+  renderScrapPage();
+  refresh();
+  showToast(`✅ 已批次更新 ${checked.length} 筆品項為「${newStatus}」`);
+}
+
+function scrapSelectAll() {
+  document.querySelectorAll('.scrap-check').forEach(cb => cb.checked = true);
+  const master = document.getElementById('scrap-check-all');
+  if (master) master.checked = true;
+}
+function scrapClearAll() {
+  document.querySelectorAll('.scrap-check').forEach(cb => cb.checked = false);
+  const master = document.getElementById('scrap-check-all');
+  if (master) master.checked = false;
+}
+function scrapToggleAll(masterCb) {
+  document.querySelectorAll('.scrap-check').forEach(cb => cb.checked = masterCb.checked);
+}
+function scrapUpdateCheckAll() {
+  const all = document.querySelectorAll('.scrap-check');
+  const checked = document.querySelectorAll('.scrap-check:checked');
+  const master = document.getElementById('scrap-check-all');
+  if (master) master.checked = all.length > 0 && all.length === checked.length;
+}
+
+function renderScrapLog() {
+  const tbody = document.getElementById('scrap-log-body');
+  if (!scrapLogs.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">尚無報廢記錄</td></tr>';
+    document.getElementById('scrap-log-count').textContent = '0 筆';
+    return;
+  }
+  document.getElementById('scrap-log-count').textContent = scrapLogs.length + ' 筆';
+  const statusColor = s => s === '已報廢' ? 'var(--red)' : 'var(--yellow)';
+  tbody.innerHTML = scrapLogs.map(r => `
+    <tr>
+      <td class="td-mono" style="font-size:11px;color:var(--text3)">${r.time}</td>
+      <td><strong>${r.food}</strong></td>
+      <td class="td-mono" style="font-size:11px;color:var(--text2)">${r.batch}</td>
+      <td class="td-mono td-right">${fmt(r.qty)}</td>
+      <td class="td-mono td-right" style="color:var(--red)">NT$ ${fmt(r.risk)}</td>
+      <td style="color:${statusColor(r.status)};font-weight:600">${r.status}</td>
+      <td style="color:var(--text3);font-size:12px">${r.remark || '—'}</td>
+    </tr>
+  `).join('');
+}
+
+// ── START ─────────────────────────────────────────────────────────────────
+
+// ── CONSTANTS ──────────────────────────────────────────────────────────────
+const SHELF_DAYS_MAP = {"豆腐":5,"牛奶":10,"菇類":7,"起司":30,"蝦仁":90,"鮭魚":90,"豬絞肉":60,"醬油":365,"雞胸肉":60,"麵粉":365,"砂糖":365,"奶油":7,"紅蘿蔔":14,"雞蛋":30,"洋蔥":14,"白米":365,"食用油":365,"馬鈴薯":7,"番茄":14,"高麗菜":7};
+const STORAGE_MAP    = {"豆腐":"冷藏庫","牛奶":"冷藏庫","菇類":"冷藏庫","起司":"冷藏庫","蝦仁":"冷凍庫","鮭魚":"冷凍庫","豬絞肉":"冷凍庫","醬油":"常溫雜貨庫","雞胸肉":"冷凍庫","麵粉":"常溫雜貨庫","砂糖":"常溫雜貨庫","奶油":"冷藏庫","紅蘿蔔":"冷藏庫","雞蛋":"冷藏庫","洋蔥":"冷藏庫","白米":"常溫雜貨庫","食用油":"常溫雜貨庫","馬鈴薯":"冷藏庫","番茄":"冷藏庫","高麗菜":"冷藏庫"};
+const UNIT_PRICE_MAP = {"豆腐":25,"牛奶":40,"菇類":80,"起司":280,"蝦仁":220,"鮭魚":260,"豬絞肉":120,"醬油":35,"雞胸肉":85,"麵粉":22,"砂糖":30,"奶油":180,"紅蘿蔔":13,"雞蛋":55,"洋蔥":20,"白米":38,"食用油":60,"馬鈴薯":21,"番茄":33,"高麗菜":21};
+
+// ── TAB SWITCHING ──────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.nav-tab').forEach((t,i) => {
+    const tabs = ['inventory','receive','issue','txnlog','scrap','flowcharts'];
+    t.classList.toggle('active', tabs[i] === tab);
+  });
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  if (tab === 'scrap') renderScrapPage();
+  if (tab === 'flowcharts' && window.renderFlowcharts) window.renderFlowcharts();
+}
+
+// ── TRANSACTION LOG ───────────────────────────────────────────────────────
+let txnLog = [];
+
+function addTxn(type, food, batch, qty, afterQty, note) {
+  txnLog.unshift({
+    time: new Date().toLocaleString('zh-TW'),
+    type, food, batch, qty, afterQty, note
+  });
+  renderTxnLog();
+}
+
+function renderTxnLog() {
+  const tbody = document.getElementById('txnlog-body');
+  if (!txnLog.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="no-results">尚無作業記錄</td></tr>';
+    return;
+  }
+  tbody.innerHTML = txnLog.map(t => `<tr>
+    <td class="td-mono" style="font-size:11px;color:var(--text3)">${t.time}</td>
+    <td><span class="txn-type-badge ${t.type==='進貨'?'txn-type-in':'txn-type-out'}">${t.type}</span></td>
+    <td><strong>${t.food}</strong></td>
+    <td class="td-mono" style="color:var(--text2);font-size:11px">${t.batch}</td>
+    <td class="td-mono ${t.type==='進貨'?'txn-in':'txn-out'}">${t.type==='進貨'?'+':'−'}${fmt(t.qty)}</td>
+    <td class="td-mono">${fmt(t.afterQty)}</td>
+    <td style="color:var(--text3);font-size:12px">${t.note}</td>
+  </tr>`).join('');
+}
+
+function exportTxnLog() {
+  if (!txnLog.length) { showToast('尚無記錄可匯出', true); return; }
+  const header = '時間,類型,食材,批號,數量,異動後庫存,說明';
+  const rows = txnLog.map(t => `${t.time},${t.type},${t.food},${t.batch},${t.qty},${t.afterQty},"${t.note}"`);
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = '作業記錄.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────
+function showToast(msg, isError=false) {
+  const el = document.createElement('div');
+  el.className = isError ? 'error-toast' : 'success-toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ── HELPER: recalc days_left & status ─────────────────────────────────────
+function recalcRow(row) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const exp = new Date(row.expiry_date); exp.setHours(0,0,0,0);
+  row.days_left = Math.round((exp - today) / 86400000);
+  if (row.days_left < 0)       row.status = '❌ 已過期';
+  else if (row.days_left <= 7) row.status = '🔴 緊迫即期';
+  else if (row.days_left <= 14) row.status = '🟡 注意';
+  else                          row.status = '🟢 安全';
+  row.risk_value = row.stock_qty * row.unit_price;
+}
+
+// ── RECEIVE FORM ──────────────────────────────────────────────────────────
+let receiveLogs = [];
+
+function onReceiveFoodChange() {
+  const food = document.getElementById('r-food').value;
+  if (!food) { clearReceiveAutoFields(); return; }
+  document.getElementById('r-storage').value = STORAGE_MAP[food] || '';
+  document.getElementById('r-shelf').value   = SHELF_DAYS_MAP[food] || '';
+  document.getElementById('r-price').value   = UNIT_PRICE_MAP[food] || '';
+  calcReceiveExpiry();
+  // Auto-generate batch ID
+  const nextId = 'BATCH' + (1131 + receiveLogs.length);
+  document.getElementById('r-batch').value = nextId;
+}
+
+function calcReceiveExpiry() {
+  const dateVal  = document.getElementById('r-date').value;
+  const shelfVal = document.getElementById('r-shelf').value;
+  if (!dateVal || !shelfVal) return;
+  const d = new Date(dateVal);
+  d.setDate(d.getDate() + parseInt(shelfVal));
+  document.getElementById('r-expiry').value = d.toISOString().slice(0,10);
+}
+
+function clearReceiveAutoFields() {
+  ['r-storage','r-shelf','r-price','r-expiry'].forEach(id => document.getElementById(id).value = '');
+}
+
+function clearReceiveForm() {
+  ['r-food','r-batch','r-date','r-qty','r-storage','r-shelf','r-expiry','r-price'].forEach(id => {
+    const el = document.getElementById(id);
+    el.value = ''; el.classList.remove('error');
+  });
+  document.getElementById('r-batch-err').style.display = 'none';
+  document.getElementById('r-note').textContent = '';
+}
+
+function submitReceive() {
+  const food    = document.getElementById('r-food').value;
+  const batchId = document.getElementById('r-batch').value.trim();
+  const dateVal = document.getElementById('r-date').value;
+  const qty     = parseInt(document.getElementById('r-qty').value);
+  const price   = parseInt(document.getElementById('r-price').value) || UNIT_PRICE_MAP[food] || 0;
+
+  // Validation
+  let valid = true;
+  if (!food) { valid = false; }
+  if (!batchId) { document.getElementById('r-batch').classList.add('error'); valid = false; }
+  else {
+    const dup = data.find(r => r.batch_id === batchId);
+    if (dup) {
+      document.getElementById('r-batch').classList.add('error');
+      document.getElementById('r-batch-err').style.display = 'block';
+      valid = false;
+    } else {
+      document.getElementById('r-batch').classList.remove('error');
+      document.getElementById('r-batch-err').style.display = 'none';
+    }
+  }
+  if (!dateVal) { document.getElementById('r-date').classList.add('error'); valid = false; }
+  if (!qty || qty <= 0) { document.getElementById('r-qty').classList.add('error'); valid = false; }
+  if (!valid) { showToast('請填寫必填欄位', true); return; }
+
+  const shelfDays = SHELF_DAYS_MAP[food] || 30;
+  const recvDate  = new Date(dateVal);
+  const expDate   = new Date(dateVal);
+  expDate.setDate(expDate.getDate() + shelfDays);
+  const expStr    = expDate.toISOString().slice(0,10);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const daysLeft = Math.round((expDate - today) / 86400000);
+
+  let status = '🟢 安全';
+  if (daysLeft < 0) status = '❌ 已過期';
+  else if (daysLeft <= 7) status = '🔴 緊迫即期';
+  else if (daysLeft <= 14) status = '🟡 注意';
+
+  const newRow = {
+    food_name: food,
+    batch_id: batchId,
+    receive_date: dateVal,
+    expiry_date: expStr,
+    days_left: daysLeft,
+    status,
+    stock_qty: qty,
+    storage: STORAGE_MAP[food] || '',
+    shelf_days: shelfDays,
+    unit_price: price,
+    risk_value: qty * price,
+    disposal_status: '尚在原庫',
+    _fifo: false
+  };
+
+  data.push(newRow);
+  buildFifo();
+  recalcRow(newRow);
+
+  // Log entry
+  const logEntry = {...newRow, logged_at: new Date().toLocaleString('zh-TW')};
+  receiveLogs.push(logEntry);
+  addTxn('進貨', food, batchId, qty, qty, `進貨 ${dateVal}，到期 ${expStr}`);
+
+  // Re-render receive log
+  const tbody = document.getElementById('receive-log-body');
+  tbody.innerHTML = receiveLogs.map((r, i) => `<tr>
+    <td><strong>${r.food_name}</strong></td>
+    <td class="td-mono" style="font-size:11px">${r.batch_id}</td>
+    <td class="td-mono" style="font-size:11px">${r.receive_date}</td>
+    <td class="td-mono" style="font-size:11px">${r.expiry_date}</td>
+    <td><span style="color:${storageColor(r.storage)};font-size:12px">●</span> ${r.storage}</td>
+    <td class="td-mono td-right">${fmt(r.stock_qty)}</td>
+    <td class="td-mono td-right" style="color:var(--text2)">${r.unit_price}</td>
+    <td class="td-mono td-right txn-in">NT$ ${fmt(r.risk_value)}</td>
+    <td><button class="btn btn-ghost" style="font-size:11px;padding:3px 10px" onclick="deleteReceiveLog(${i})">刪除</button></td>
+  </tr>`).join('');
+  document.getElementById('receive-count').textContent = receiveLogs.length + ' 筆';
+
+  refresh();
+  clearReceiveForm();
+  // Set next batch suggestion
+  document.getElementById('r-batch').value = 'BATCH' + (1131 + receiveLogs.length);
+  showToast('✅ 進貨登記成功：' + food + ' ' + batchId);
+}
+
+function deleteReceiveLog(idx) {
+  const log = receiveLogs[idx];
+  // Remove from data array
+  const di = data.findIndex(r => r.batch_id === log.batch_id);
+  if (di !== -1) data.splice(di, 1);
+  receiveLogs.splice(idx, 1);
+  refresh();
+  // Re-render
+  const tbody = document.getElementById('receive-log-body');
+  if (!receiveLogs.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text3)">尚無進貨記錄</td></tr>';
+  } else {
+    tbody.innerHTML = receiveLogs.map((r, i) => `<tr>
+      <td><strong>${r.food_name}</strong></td>
+      <td class="td-mono" style="font-size:11px">${r.batch_id}</td>
+      <td class="td-mono" style="font-size:11px">${r.receive_date}</td>
+      <td class="td-mono" style="font-size:11px">${r.expiry_date}</td>
+      <td><span style="color:${storageColor(r.storage)};font-size:12px">●</span> ${r.storage}</td>
+      <td class="td-mono td-right">${fmt(r.stock_qty)}</td>
+      <td class="td-mono td-right" style="color:var(--text2)">${r.unit_price}</td>
+      <td class="td-mono td-right txn-in">NT$ ${fmt(r.risk_value)}</td>
+      <td><button class="btn btn-ghost" style="font-size:11px;padding:3px 10px" onclick="deleteReceiveLog(${i})">刪除</button></td>
+    </tr>`).join('');
+  }
+  document.getElementById('receive-count').textContent = receiveLogs.length + ' 筆';
+  showToast('已撤銷進貨登記');
+}
+
+// ── ISSUE FORM ────────────────────────────────────────────────────────────
+let issueLogs = [];
+
+function onIssueFoodChange() {
+  const food = document.getElementById('i-food').value;
+  const batchSel = document.getElementById('i-batch');
+  document.getElementById('fifo-hint-panel').style.display = 'none';
+  document.getElementById('issue-stock-preview').classList.remove('show');
+  if (!food) { batchSel.innerHTML = '<option value="">— 先選食材 —</option>'; return; }
+
+  // Get batches for this food: valid (non-expired, stock>0), sorted FIFO
+  const batches = data.filter(r => r.food_name === food && r.stock_qty > 0 && r.days_left >= 0)
+                      .sort((a,b) => a.days_left - b.days_left);
+  // Expired batches shown separately for awareness
+  const expiredBatches = data.filter(r => r.food_name === food && r.stock_qty > 0 && r.days_left < 0);
+
+  if (!batches.length) {
+    batchSel.innerHTML = '<option value="">此食材無庫存</option>';
+    return;
+  }
+
+  batchSel.innerHTML = '<option value="">— 選擇批號（FIFO建議順序）—</option>' +
+    batches.map((r, i) => {
+      const label = r.days_left < 0 ? `過期${Math.abs(r.days_left)}天` : `剩${r.days_left}天`;
+      const fifo = i === 0 ? ' ⭐FIFO優先' : '';
+      return `<option value="${r.batch_id}">${r.batch_id}（${label}・庫存${r.stock_qty}）${fifo}</option>`;
+    }).join('');
+
+  // Show FIFO hint
+  const hintPanel = document.getElementById('fifo-hint-panel');
+  const hintContent = document.getElementById('fifo-hint-content');
+  hintPanel.style.display = 'block';
+  const expiredNote = expiredBatches.length
+    ? `<div style="margin-top:10px;padding:8px 12px;border-radius:6px;background:var(--red-bg);border:1px solid var(--red);font-size:12px;color:var(--red)">
+        ⚠ 此食材另有 ${expiredBatches.length} 批已過期庫存（${expiredBatches.map(r=>r.batch_id).join('、')}），請先至庫存總覽確認處置狀態。
+       </div>` : '';
+  hintContent.innerHTML = `<table class="txn-table"><thead><tr>
+    <th>耗用順序</th><th>批號</th><th>剩餘天數</th><th>到期日</th><th>現有庫存</th><th>狀態</th>
+  </tr></thead><tbody>${batches.map((r,i) => `<tr>
+    <td><span class="fifo-order">${i+1}</span></td>
+    <td class="td-mono" style="font-size:11px">${r.batch_id}</td>
+    <td class="td-mono" style="color:${r.days_left<=7?'var(--orange)':r.days_left<=14?'var(--yellow)':'var(--green)'}">
+      剩${r.days_left}天
+    </td>
+    <td class="td-mono" style="font-size:11px">${r.expiry_date}</td>
+    <td class="td-mono td-right">${fmt(r.stock_qty)}</td>
+    <td>${statusBadge(r)}</td>
+  </tr>`).join('')}</tbody></table>${expiredNote}`;
+}
+
+function onIssueBatchChange() {
+  updateIssuePreview();
+}
+
+function updateIssuePreview() {
+  const batchId = document.getElementById('i-batch').value;
+  const qtyEl   = document.getElementById('i-qty');
+  const preview = document.getElementById('issue-stock-preview');
+  const content = document.getElementById('issue-preview-content');
+  const errEl   = document.getElementById('i-qty-err');
+
+  if (!batchId) { preview.classList.remove('show'); return; }
+  const row = data.find(r => r.batch_id === batchId);
+  if (!row) { preview.classList.remove('show'); return; }
+
+  const reqQty = parseInt(qtyEl.value) || 0;
+  const afterQty = row.stock_qty - reqQty;
+  const valid = reqQty > 0 && afterQty >= 0;
+
+  errEl.style.display = reqQty > row.stock_qty ? 'block' : 'none';
+  errEl.textContent = `超出庫存量（現有 ${row.stock_qty}）`;
+
+  preview.classList.add('show');
+  content.innerHTML = `
+    <div class="sp-item"><span>批號</span><span>${row.batch_id}</span></div>
+    <div class="sp-item"><span>現有庫存</span><span>${fmt(row.stock_qty)}</span></div>
+    <div class="sp-item"><span>領料後剩餘</span><span style="color:${afterQty<0?'var(--red)':afterQty<10?'var(--orange)':'var(--green)'}">${afterQty >= 0 ? fmt(afterQty) : '⚠ 不足'}</span></div>
+    <div class="sp-item"><span>到期日</span><span>${row.expiry_date}</span></div>
+    <div class="sp-item"><span>狀態</span><span>${row.status}</span></div>
+  `;
+}
+
+function clearIssueForm() {
+  document.getElementById('i-food').value = '';
+  document.getElementById('i-batch').innerHTML = '<option value="">— 先選食材 —</option>';
+  document.getElementById('i-date').value = '';
+  document.getElementById('i-qty').value = '';
+  document.getElementById('i-reason').value = '一般生產用料';
+  document.getElementById('i-remark').value = '';
+  document.getElementById('issue-stock-preview').classList.remove('show');
+  document.getElementById('fifo-hint-panel').style.display = 'none';
+  document.getElementById('i-note').textContent = '';
+}
+
+function submitIssue() {
+  const food    = document.getElementById('i-food').value;
+  const batchId = document.getElementById('i-batch').value;
+  const dateVal = document.getElementById('i-date').value;
+  const qty     = parseInt(document.getElementById('i-qty').value);
+  const reason  = document.getElementById('i-reason').value;
+  const remark  = document.getElementById('i-remark').value;
+
+  if (!food || !batchId) { showToast('請選擇食材與批號', true); return; }
+  if (!dateVal) { document.getElementById('i-date').classList.add('error'); showToast('請填寫領料日期', true); return; }
+  if (!qty || qty <= 0) { document.getElementById('i-qty').classList.add('error'); showToast('請填寫有效的領料數量', true); return; }
+
+  const row = data.find(r => r.batch_id === batchId);
+  if (!row) { showToast('找不到此批號', true); return; }
+  if (qty > row.stock_qty) { showToast(`領料量（${qty}）超出庫存（${row.stock_qty}）`, true); return; }
+
+  const beforeQty = row.stock_qty;
+  row.stock_qty -= qty;
+  row.risk_value = row.stock_qty * row.unit_price;
+  recalcRow(row);
+
+  const logEntry = {
+    food_name: food, batch_id: batchId, issue_date: dateVal,
+    before_qty: beforeQty, qty, after_qty: row.stock_qty,
+    reason, remark, logged_at: new Date().toLocaleString('zh-TW')
+  };
+  issueLogs.push(logEntry);
+  addTxn('領料', food, batchId, qty, row.stock_qty, `${reason}${remark?' · '+remark:''}`);
+
+  // Re-render issue log
+  const tbody = document.getElementById('issue-log-body');
+  tbody.innerHTML = [...issueLogs].reverse().map((r, ri) => `<tr>
+    <td><strong>${r.food_name}</strong></td>
+    <td class="td-mono" style="font-size:11px">${r.batch_id}</td>
+    <td class="td-mono" style="font-size:11px">${r.issue_date}</td>
+    <td class="td-mono td-right">${fmt(r.before_qty)}</td>
+    <td class="td-mono td-right txn-out">−${fmt(r.qty)}</td>
+    <td class="td-mono td-right" style="color:${r.after_qty===0?'var(--red)':r.after_qty<10?'var(--orange)':'var(--green)'}">${fmt(r.after_qty)}</td>
+    <td style="color:var(--text2);font-size:12px">${r.reason}</td>
+    <td style="color:var(--text3);font-size:12px">${r.remark||'—'}</td>
+    <td><button class="btn btn-ghost" style="font-size:11px;padding:3px 10px" onclick="undoIssue(${issueLogs.length-1-ri})">撤銷</button></td>
+  </tr>`).join('');
+  document.getElementById('issue-count').textContent = issueLogs.length + ' 筆';
+
+  refresh();
+  clearIssueForm();
+  showToast(`✅ 領料成功：${food} ${batchId} −${qty}，剩餘 ${row.stock_qty}`);
+}
+
+function undoIssue(idx) {
+  const log = issueLogs[idx];
+  issueLogs.splice(idx, 1);
+
+  // Recalculate stock for affected batch by replaying from original data
+  // Original stock = RAW_DATA value + any receive logs for this batch
+  const raw = RAW_DATA.find(r => r.batch_id === log.batch_id);
+  const received = receiveLogs.find(r => r.batch_id === log.batch_id);
+  const row = data.find(r => r.batch_id === log.batch_id);
+  if (row) {
+    const baseQty = raw ? raw.stock_qty : (received ? received.stock_qty : log.before_qty);
+    const totalIssued = issueLogs
+      .filter(l => l.batch_id === log.batch_id)
+      .reduce((s, l) => s + l.qty, 0);
+    row.stock_qty = baseQty - totalIssued;
+    row.risk_value = row.stock_qty * row.unit_price;
+    recalcRow(row);
+  }
+
+  // Rebuild issue log display
+  const tbody = document.getElementById('issue-log-body');
+  if (!issueLogs.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text3)">尚無領料記錄</td></tr>';
+  } else {
+    tbody.innerHTML = [...issueLogs].reverse().map((r, ri) => `<tr>
+      <td><strong>${r.food_name}</strong></td>
+      <td class="td-mono" style="font-size:11px">${r.batch_id}</td>
+      <td class="td-mono" style="font-size:11px">${r.issue_date}</td>
+      <td class="td-mono td-right">${fmt(r.before_qty)}</td>
+      <td class="td-mono td-right txn-out">−${fmt(r.qty)}</td>
+      <td class="td-mono td-right" style="color:${r.after_qty===0?'var(--red)':r.after_qty<10?'var(--orange)':'var(--green)'}">${fmt(r.after_qty)}</td>
+      <td style="color:var(--text2);font-size:12px">${r.reason}</td>
+      <td style="color:var(--text3);font-size:12px">${r.remark||'—'}</td>
+      <td><button class="btn btn-ghost" style="font-size:11px;padding:3px 10px" onclick="undoIssue(${issueLogs.length-1-ri})">撤銷</button></td>
+    </tr>`).join('');
+  }
+  document.getElementById('issue-count').textContent = issueLogs.length + ' 筆';
+  refresh();
+  showToast('已撤銷領料記錄');
+}
+
+// ── SET DEFAULT DATES ─────────────────────────────────────────────────────
+function setDefaultDates() {
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('r-date').value = today;
+  document.getElementById('i-date').value = today;
+}
+
+function refresh() {
+  buildFifo();
+  renderKPI();
+  renderFifoPanel();
+  renderTable();
+  renderModal();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  init();
+  setDefaultDates();
+});
+</script>
+</div></div>
+
+<!-- ====== RECEIVE PAGE ====== -->
+<div class="page-section" id="page-receive">
+<div class="container">
+  <div class="form-panel">
+    <h2>📥 新增進貨紀錄</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>食材名稱 *</label>
+        <select class="form-select" id="r-food" onchange="onReceiveFoodChange()">
+          <option value="">— 選擇食材 —</option>
+          <option value="豆腐">豆腐（效期5天 · 冷藏庫）</option>
+<option value="牛奶">牛奶（效期10天 · 冷藏庫）</option>
+<option value="菇類">菇類（效期7天 · 冷藏庫）</option>
+<option value="起司">起司（效期30天 · 冷藏庫）</option>
+<option value="蝦仁">蝦仁（效期90天 · 冷凍庫）</option>
+<option value="鮭魚">鮭魚（效期90天 · 冷凍庫）</option>
+<option value="豬絞肉">豬絞肉（效期60天 · 冷凍庫）</option>
+<option value="醬油">醬油（效期365天 · 常溫雜貨庫）</option>
+<option value="雞胸肉">雞胸肉（效期60天 · 冷凍庫）</option>
+<option value="麵粉">麵粉（效期365天 · 常溫雜貨庫）</option>
+<option value="砂糖">砂糖（效期365天 · 常溫雜貨庫）</option>
+<option value="奶油">奶油（效期7天 · 冷藏庫）</option>
+<option value="紅蘿蔔">紅蘿蔔（效期14天 · 冷藏庫）</option>
+<option value="雞蛋">雞蛋（效期30天 · 冷藏庫）</option>
+<option value="洋蔥">洋蔥（效期14天 · 冷藏庫）</option>
+<option value="白米">白米（效期365天 · 常溫雜貨庫）</option>
+<option value="食用油">食用油（效期365天 · 常溫雜貨庫）</option>
+<option value="馬鈴薯">馬鈴薯（效期7天 · 冷藏庫）</option>
+<option value="番茄">番茄（效期14天 · 冷藏庫）</option>
+<option value="高麗菜">高麗菜（效期7天 · 冷藏庫）</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>批號代碼 *</label>
+        <input class="form-input" id="r-batch" placeholder="例：BATCH1200" />
+        <span id="r-batch-err" class="error-msg" style="display:none">批號不可重複</span>
+      </div>
+      <div class="form-group">
+        <label>進貨日期 *</label>
+        <input class="form-input" type="date" id="r-date" />
+      </div>
+      <div class="form-group">
+        <label>庫存量（進貨數量）*</label>
+        <input class="form-input" type="number" id="r-qty" placeholder="0" min="1" />
+      </div>
+      <div class="form-group">
+        <label>庫別（自動帶入）</label>
+        <input class="form-input" id="r-storage" readonly style="opacity:.6" />
+      </div>
+      <div class="form-group">
+        <label>效期天數（自動帶入）</label>
+        <input class="form-input" id="r-shelf" readonly style="opacity:.6" />
+      </div>
+      <div class="form-group">
+        <label>預估到期日（自動計算）</label>
+        <input class="form-input" id="r-expiry" readonly style="opacity:.6" />
+      </div>
+      <div class="form-group">
+        <label>單價 NT$/kg（自動帶入）</label>
+        <input class="form-input" type="number" id="r-price" placeholder="0" />
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="submitReceive()">✅ 確認進貨登記</button>
+      <button class="btn btn-ghost" onclick="clearReceiveForm()">清除</button>
+      <span class="form-note" id="r-note"></span>
+    </div>
+  </div>
+  <div class="txn-log">
+    <div class="txn-log-header">
+      <span>本次作業進貨記錄</span>
+      <span id="receive-count" style="font-family:JetBrains Mono,monospace;font-size:12px;color:var(--text3)">0 筆</span>
+    </div>
+    <table class="txn-table">
+      <thead>
+        <tr>
+          <th>食材</th><th>批號</th><th>進貨日期</th><th>到期日</th>
+          <th>庫別</th><th>數量</th><th>單價</th><th>金額</th><th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="receive-log-body">
+        <tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text3)">尚無進貨記錄</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- ====== ISSUE PAGE ====== -->
+<div class="page-section" id="page-issue">
+<div class="container">
+  <div class="form-panel">
+    <h2>📤 領料出貨登記</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>食材名稱 *</label>
+        <select class="form-select" id="i-food" onchange="onIssueFoodChange()">
+          <option value="">— 選擇食材 —</option>
+          <option value="豆腐">豆腐</option>
+<option value="牛奶">牛奶</option>
+<option value="菇類">菇類</option>
+<option value="起司">起司</option>
+<option value="蝦仁">蝦仁</option>
+<option value="鮭魚">鮭魚</option>
+<option value="豬絞肉">豬絞肉</option>
+<option value="醬油">醬油</option>
+<option value="雞胸肉">雞胸肉</option>
+<option value="麵粉">麵粉</option>
+<option value="砂糖">砂糖</option>
+<option value="奶油">奶油</option>
+<option value="紅蘿蔔">紅蘿蔔</option>
+<option value="雞蛋">雞蛋</option>
+<option value="洋蔥">洋蔥</option>
+<option value="白米">白米</option>
+<option value="食用油">食用油</option>
+<option value="馬鈴薯">馬鈴薯</option>
+<option value="番茄">番茄</option>
+<option value="高麗菜">高麗菜</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>批號代碼 *（依 FIFO 優先）</label>
+        <select class="form-select" id="i-batch" onchange="onIssueBatchChange()">
+          <option value="">— 先選食材 —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>領料日期 *</label>
+        <input class="form-input" type="date" id="i-date" />
+      </div>
+      <div class="form-group">
+        <label>領料數量 *</label>
+        <input class="form-input" type="number" id="i-qty" placeholder="0" min="1" oninput="updateIssuePreview()" />
+        <span id="i-qty-err" class="error-msg" style="display:none"></span>
+      </div>
+      <div class="form-group">
+        <label>領料原因</label>
+        <select class="form-select" id="i-reason">
+          <option>一般生產用料</option>
+          <option>門市補貨</option>
+          <option>外部客戶出貨</option>
+          <option>品管取樣</option>
+          <option>其他</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>備註</label>
+        <input class="form-input" id="i-remark" placeholder="選填" />
+      </div>
+    </div>
+    <div id="issue-stock-preview" class="stock-preview">
+      <div class="sp-title">📦 選取批號庫存資訊</div>
+      <div id="issue-preview-content"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="submitIssue()">✅ 確認領料出貨</button>
+      <button class="btn btn-ghost" onclick="clearIssueForm()">清除</button>
+      <span class="form-note" id="i-note"></span>
+    </div>
+  </div>
+
+  <!-- FIFO hint -->
+  <div class="form-panel" id="fifo-hint-panel" style="display:none">
+    <h2>📦 同品項 FIFO 建議耗用順序</h2>
+    <div id="fifo-hint-content"></div>
+  </div>
+
+  <div class="txn-log">
+    <div class="txn-log-header">
+      <span>本次作業領料記錄</span>
+      <span id="issue-count" style="font-family:JetBrains Mono,monospace;font-size:12px;color:var(--text3)">0 筆</span>
+    </div>
+    <table class="txn-table">
+      <thead>
+        <tr>
+          <th>食材</th><th>批號</th><th>領料日期</th><th>領料前庫存</th>
+          <th>領料量</th><th>領料後庫存</th><th>原因</th><th>備註</th><th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="issue-log-body">
+        <tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text3)">尚無領料記錄</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- ====== TXNLOG PAGE ====== -->
+<div class="page-section" id="page-txnlog">
+<div class="container">
+  <div class="section-header">
+    <div><h2>📑 完整作業記錄</h2><p>進貨與領料的完整異動歷程</p></div>
+    <button class="btn btn-ghost" onclick="exportTxnLog()" style="font-size:12px">⬇ 匯出 CSV</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>時間</th><th>類型</th><th>食材</th><th>批號</th>
+          <th>數量</th><th>異動後庫存</th><th>說明</th>
+        </tr>
+      </thead>
+      <tbody id="txnlog-body">
+        <tr><td colspan="7" class="no-results">尚無作業記錄</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+
+<!-- ====== SCRAP PAGE ====== -->
+<div class="page-section" id="page-scrap">
+<div class="container">
+
+  <!-- Summary bar -->
+  <div class="form-panel" style="padding:16px 22px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div>
+        <h2 style="margin-bottom:4px">🗑 報廢作業</h2>
+        <p style="font-size:12px;color:var(--text3)">
+          僅顯示已過期且庫存量 &gt; 0 的品項。勾選後可批次更新處置狀態，並自動寫入作業記錄。
+        </p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost" style="font-size:12px" onclick="scrapSelectAll()">全選</button>
+        <button class="btn btn-ghost" style="font-size:12px" onclick="scrapClearAll()">取消全選</button>
+        <button class="btn btn-ghost" style="font-size:12px;color:var(--yellow);border-color:var(--yellow)"
+          onclick="scrapBatch('已轉移至報廢倉')">→ 批次轉移至報廢倉</button>
+        <button class="btn btn-primary" style="font-size:12px;background:var(--red);border-color:var(--red)"
+          onclick="scrapBatch('已報廢')">✓ 批次確認報廢</button>
+      </div>
+    </div>
+    <div id="scrap-summary" style="margin-top:14px;display:flex;gap:20px;flex-wrap:wrap"></div>
+  </div>
+
+  <!-- Scrap table -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:36px"><input type="checkbox" id="scrap-check-all" onchange="scrapToggleAll(this)" style="cursor:pointer"></th>
+          <th>食材名稱</th>
+          <th>批號</th>
+          <th>庫別</th>
+          <th>到期日</th>
+          <th>過期天數</th>
+          <th>庫存量</th>
+          <th>單價</th>
+          <th>報廢金額估算</th>
+          <th>目前處置狀態</th>
+          <th>更新為</th>
+        </tr>
+      </thead>
+      <tbody id="scrap-table-body">
+        <tr><td colspan="11" class="no-results">載入中…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Scrap log -->
+  <div class="txn-log" style="margin-top:20px">
+    <div class="txn-log-header">
+      <span>本次報廢作業記錄</span>
+      <span id="scrap-log-count" style="font-family:JetBrains Mono,monospace;font-size:12px;color:var(--text3)">0 筆</span>
+    </div>
+    <table class="txn-table">
+      <thead>
+        <tr><th>時間</th><th>食材</th><th>批號</th><th>庫存量</th><th>報廢金額</th><th>處置狀態</th><th>操作人員備註</th></tr>
+      </thead>
+      <tbody id="scrap-log-body">
+        <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">尚無報廢記錄</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+</div>
+
+
+<!-- ====== FLOWCHART PAGE ====== -->
+<div class="page-section" id="page-flowcharts">
+<div class="container">
+  <div class="flow-hero">
+    <h2>🧭 系統流程圖</h2>
+    <p>將食材效期管理系統拆成三張 Mermaid 圖：主管總覽、倉庫作業、效期判斷與報廢控管。</p>
+  </div>
+
+  <div class="flow-note">
+    判斷原則：本週優先使用清單僅列入剩餘 0 到 14 天品項；已過期品項獨立列入報廢或隔離流程，不放進優先使用；排序邏輯為剩餘天數少、冷藏優先、庫存量多。
+  </div>
+
+  <div class="flow-grid">
+    <section class="flow-card">
+      <div class="flow-card-header">
+        <div>
+          <h3>圖一｜系統總流程圖</h3>
+          <p>給主管或簡報使用，說明使用者進入系統後，各主要模組如何連動。</p>
+        </div>
+        <span class="flow-badge">Overview</span>
+      </div>
+      <div class="flow-chart-wrap">
+<div class="mermaid">
+flowchart TD
+    A["開啟食材效期管理與到期預警系統"] --> B["顯示本週食材耗用優先提醒"]
+    B --> C{"使用者確認提醒"}
+    C --> D["進入主畫面"]
+    D --> E{"選擇功能分頁"}
+    E --> F["庫存總覽"]
+    E --> G["進貨登記"]
+    E --> H["領料出貨"]
+    E --> I["作業記錄"]
+    E --> J["報廢作業"]
+    E --> K["流程圖說明"]
+    F --> F1["查看 KPI 指標"]
+    F --> F2["查看 FIFO 批號耗用順序"]
+    F --> F3["篩選庫存狀態與庫別"]
+    F --> F4["搜尋食材名稱或批號"]
+    F --> F5["查看完整庫存明細"]
+    G --> G1["新增進貨資料"]
+    G1 --> G2["更新庫存"]
+    G2 --> I
+    G2 --> F
+    H --> H1["選擇食材與批號"]
+    H1 --> H2["依 FIFO 領料"]
+    H2 --> H3["扣減庫存"]
+    H3 --> I
+    H3 --> F
+    J --> J1["查看已過期品項"]
+    J1 --> J2["轉移至報廢倉或確認報廢"]
+    J2 --> I
+    J2 --> F
+</div>
+      </div>
+    </section>
+
+    <section class="flow-card">
+      <div class="flow-card-header">
+        <div>
+          <h3>圖二｜進貨與領料作業流程圖</h3>
+          <p>給倉庫人員使用，聚焦每日進貨、領料、FIFO 與庫存不足時的處理。</p>
+        </div>
+        <span class="flow-badge">Warehouse</span>
+      </div>
+      <div class="flow-chart-wrap">
+<div class="mermaid">
+flowchart TD
+    A["倉庫人員進入系統"] --> B{"今日作業類型"}
+    B --> C["進貨作業"]
+    C --> C1["進入進貨登記"]
+    C1 --> C2["選擇食材名稱"]
+    C2 --> C3["輸入進貨日期與數量"]
+    C3 --> C4["系統帶入保存天數、庫別、單價"]
+    C4 --> C5["系統計算效期與風險金額"]
+    C5 --> C6{"資料是否完整"}
+    C6 --> C7["資料不完整：顯示錯誤並要求修正"]
+    C7 --> C2
+    C6 --> C8["資料完整：新增批號與庫存"]
+    C8 --> C9["寫入進貨作業記錄"]
+    C9 --> Z["回到庫存總覽"]
+    B --> D["領料出貨作業"]
+    D --> D1["進入領料出貨"]
+    D1 --> D2["選擇食材名稱"]
+    D2 --> D3["系統列出可用批號"]
+    D3 --> D4["依 FIFO 顯示建議耗用順序"]
+    D4 --> D5["選擇批號並輸入領料數量"]
+    D5 --> D6{"庫存是否足夠"}
+    D6 --> D7["庫存不足：提示人員修正數量"]
+    D7 --> D5
+    D6 --> D8["庫存足夠：扣減該批號庫存"]
+    D8 --> D9["寫入領料出貨記錄"]
+    D9 --> Z
+    Z --> E["重新計算 KPI、FIFO 與預警清單"]
+    E --> F{"是否有剩餘 0 到 14 天品項"}
+    F --> G["有：列入本週優先使用"]
+    F --> H["無：維持一般庫存監控"]
+    G --> G1["第一排序：剩餘天數少"]
+    G1 --> G2["第二排序：冷藏優先"]
+    G2 --> G3["第三排序：庫存量多"]
+</div>
+      </div>
+    </section>
+
+    <section class="flow-card">
+      <div class="flow-card-header">
+        <div>
+          <h3>圖三｜效期判斷與報廢流程圖</h3>
+          <p>給品保、主管或稽核說明使用，明確區分優先使用、正常庫存與報廢品處置。</p>
+        </div>
+        <span class="flow-badge">QA / Scrap</span>
+      </div>
+      <div class="flow-chart-wrap">
+<div class="mermaid">
+flowchart TD
+    A["系統讀取所有庫存批號"] --> B["計算到期日與剩餘天數"]
+    B --> C{"剩餘天數判斷"}
+    C --> D["已過期品：剩餘天數小於 0 天"]
+    C --> E["本週優先使用：剩餘 0 到 14 天"]
+    C --> F["一般安全庫存：剩餘大於 14 天"]
+    E --> E1["排入優先使用清單"]
+    E1 --> E2["依剩餘天數少排序"]
+    E2 --> E3["冷藏庫優先"]
+    E3 --> E4["庫存量多優先"]
+    E4 --> E5["提示倉庫與生產優先耗用"]
+    D --> D1["從優先使用清單排除"]
+    D1 --> D2["列入報廢作業頁"]
+    D2 --> D3{"目前處置狀態"}
+    D3 --> D4["尚在原庫：轉移至報廢倉"]
+    D3 --> D5["已轉移至報廢倉：確認報廢"]
+    D3 --> D6["已報廢：保留報廢紀錄"]
+    D4 --> D7["寫入轉移處置紀錄"]
+    D5 --> D8["扣除或歸零報廢庫存"]
+    D8 --> D9["寫入報廢紀錄"]
+    D6 --> D10["供主管追溯查核"]
+    F --> F1["維持庫存總覽"]
+    F1 --> F2["每日重新計算"]
+    F2 --> A
+</div>
+      </div>
+    </section>
+  </div>
+</div>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  window.mermaid = mermaid;
+  let flowchartsRendered = false;
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'dark',
+    securityLevel: 'loose',
+    flowchart: { useMaxWidth: true, htmlLabels: false, curve: 'basis' },
+    themeVariables: {
+      background: '#0d1117',
+      primaryColor: '#161b22',
+      primaryTextColor: '#e6edf3',
+      primaryBorderColor: '#3a4a5e',
+      lineColor: '#8b949e',
+      secondaryColor: '#1c2330',
+      tertiaryColor: '#1a2535',
+      fontFamily: 'Noto Sans TC, sans-serif'
+    }
+  });
+  window.renderFlowcharts = async function() {
+    if (flowchartsRendered) return;
+    const section = document.getElementById('page-flowcharts');
+    if (!section || !section.classList.contains('active')) return;
+    try {
+      await mermaid.run({ nodes: section.querySelectorAll('.mermaid') });
+      flowchartsRendered = true;
+    } catch (err) {
+      console.error('Mermaid render error:', err);
+    }
+  };
+  if (document.readyState !== 'loading') {
+    window.renderFlowcharts();
+  } else {
+    document.addEventListener('DOMContentLoaded', () => window.renderFlowcharts());
+  }
+</script>
+
+</body>
+</html>
